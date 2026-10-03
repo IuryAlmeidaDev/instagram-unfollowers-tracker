@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "Quem Não Me Segue - Detector para Instagram™",
+  "version": "1.0.0",
+  "description": "Descubra quem não te segue de volta no Instagram com segurança, sem digitar sua senha e com proteção de limites.",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_title": "Detector de Não Seguidores",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.instagram.com/*"],
+      "js": ["content.js"],
+      "css": ["styles.css"],
+      "run_at": "document_idle"
+    }
+  ]
+}

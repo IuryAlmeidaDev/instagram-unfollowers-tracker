@@ -1,0 +1,366 @@
+/* Estilos da Extensão de Não Seguidores do Instagram */
+
+/* Botão Flutuante Discreto no Canto da Tela do Instagram */
+.ig-unfollowers-floating-btn {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 999999;
+  background: linear-gradient(45deg, #833ab4, #fd1d1d, #fcb045);
+  color: #ffffff;
+  border: none;
+  border-radius: 30px;
+  padding: 10px 18px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.2s;
+}
+
+.ig-unfollowers-floating-btn:hover {
+  transform: scale(1.06);
+  box-shadow: 0 6px 22px rgba(253, 29, 29, 0.45);
+}
+
+/* Modal Overlay Completo */
+.ig-unf-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  z-index: 1000000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  box-sizing: border-box;
+  animation: igFadeIn 0.2s ease-out;
+}
+
+@keyframes igFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Caixa do Modal */
+.ig-unf-modal {
+  width: 100%;
+  max-width: 580px;
+  max-height: 85vh;
+  background: #121212;
+  border: 1px solid #262626;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+  color: #f5f5f5;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  overflow: hidden;
+}
+
+/* Cabeçalho do Modal */
+.ig-unf-header {
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #262626;
+  background: #181818;
+}
+
+.ig-unf-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ig-unf-logo-badge {
+  width: 28px;
+  height: 28px;
+  background: linear-gradient(45deg, #833ab4, #fd1d1d, #fcb045);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+
+.ig-unf-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.ig-unf-close-btn {
+  background: transparent;
+  border: none;
+  color: #a8a8a8;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 50%;
+  transition: color 0.15s, background 0.15s;
+}
+
+.ig-unf-close-btn:hover {
+  color: #ffffff;
+  background: #262626;
+}
+
+/* Conteúdo do Modal */
+.ig-unf-body {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* Tela de Início / Scanner */
+.ig-unf-start-card {
+  text-align: center;
+  padding: 30px 20px;
+}
+
+.ig-unf-big-icon {
+  font-size: 42px;
+  margin-bottom: 12px;
+}
+
+.ig-unf-start-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.ig-unf-start-desc {
+  font-size: 13px;
+  color: #a8a8a8;
+  line-height: 1.5;
+  max-width: 400px;
+  margin: 0 auto 20px auto;
+}
+
+.ig-unf-primary-btn {
+  background: linear-gradient(45deg, #833ab4, #fd1d1d, #fcb045);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 24px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(253, 29, 29, 0.35);
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.ig-unf-primary-btn:hover {
+  transform: translateY(-1px);
+  opacity: 0.95;
+}
+
+.ig-unf-primary-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Barra de Progresso */
+.ig-unf-progress-box {
+  background: #181818;
+  border-radius: 12px;
+  padding: 20px;
+  margin-top: 16px;
+  border: 1px solid #262626;
+  text-align: center;
+}
+
+.ig-unf-progress-bar-bg {
+  width: 100%;
+  height: 8px;
+  background: #2a2a2a;
+  border-radius: 4px;
+  margin: 14px 0 10px 0;
+  overflow: hidden;
+}
+
+.ig-unf-progress-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #833ab4, #fd1d1d, #fcb045);
+  transition: width 0.3s ease;
+}
+
+.ig-unf-status-text {
+  font-size: 13px;
+  color: #a8a8a8;
+}
+
+/* Abas de Resultados */
+.ig-unf-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid #262626;
+  padding-bottom: 10px;
+}
+
+.ig-unf-tab-btn {
+  background: transparent;
+  border: none;
+  color: #a8a8a8;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ig-unf-tab-btn.active {
+  background: #262626;
+  color: #ffffff;
+}
+
+.ig-unf-tab-badge {
+  background: #333333;
+  color: #ffffff;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 10px;
+}
+
+.ig-unf-tab-btn.active .ig-unf-tab-badge {
+  background: #fd1d1d;
+}
+
+/* Barra de Filtro e Exportação */
+.ig-unf-toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.ig-unf-search-input {
+  flex: 1;
+  background: #181818;
+  border: 1px solid #262626;
+  border-radius: 8px;
+  color: #ffffff;
+  padding: 8px 12px;
+  font-size: 13px;
+  outline: none;
+}
+
+.ig-unf-search-input:focus {
+  border-color: #fd1d1d;
+}
+
+.ig-unf-export-btn {
+  background: #262626;
+  border: 1px solid #363636;
+  color: #e0e0e0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.ig-unf-export-btn:hover {
+  background: #333333;
+  color: #ffffff;
+}
+
+/* Lista de Usuários */
+.ig-unf-user-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ig-unf-user-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #181818;
+  border: 1px solid #262626;
+  border-radius: 10px;
+  padding: 10px 14px;
+  transition: background 0.15s;
+}
+
+.ig-unf-user-card:hover {
+  background: #202020;
+}
+
+.ig-unf-user-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ig-unf-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #2a2a2a;
+}
+
+.ig-unf-names {
+  display: flex;
+  flex-direction: column;
+}
+
+.ig-unf-username {
+  font-size: 13px;
+  font-weight: 700;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ig-unf-fullname {
+  font-size: 11px;
+  color: #a8a8a8;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ig-unf-link-btn {
+  background: transparent;
+  color: #0095f6;
+  border: 1px solid #0095f6;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.15s, color 0.15s;
+}
+
+.ig-unf-link-btn:hover {
+  background: #0095f6;
+  color: #ffffff;
+}
+
+.ig-unf-empty-msg {
+  text-align: center;
+  padding: 30px 10px;
+  color: #737373;
+  font-size: 13px;
+}
