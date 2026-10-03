@@ -1,30 +1,45 @@
 /* Estilos da Extensão de Não Seguidores do Instagram */
 
-/* Botão Flutuante Redondo na Lateral Direita (Meio da Tela) */
+/* Botão Flutuante Proeminente na Lateral Direita (Meio da Tela) */
 .ig-unfollowers-floating-btn {
   position: fixed;
   right: 18px;
   top: 50%;
   transform: translateY(-50%);
   z-index: 999999;
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
   background: linear-gradient(45deg, #833ab4, #fd1d1d, #fcb045);
   color: #ffffff;
-  border: none;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 30px;
+  padding: 12px 20px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5), 0 2px 10px rgba(253, 29, 29, 0.4);
   display: flex;
   align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  font-size: 22px;
-  transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.25s;
+  gap: 10px;
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.2s;
+  white-space: nowrap;
+  user-select: none;
 }
 
 .ig-unfollowers-floating-btn:hover {
-  transform: translateY(-50%) scale(1.12);
-  box-shadow: 0 6px 26px rgba(253, 29, 29, 0.55);
+  transform: translateY(-50%) scale(1.06);
+  box-shadow: 0 8px 30px rgba(253, 29, 29, 0.65);
+}
+
+.ig-btn-icon {
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+}
+
+.ig-btn-text {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
 }
 
 /* Modal Overlay Completo */

@@ -30,7 +30,7 @@
     return match ? match[1] : '';
   }
 
-  // Cria o botão flutuante redondo no meio da lateral direita
+  // Cria o botão flutuante proeminente no meio da lateral direita
   function injectFloatingButton() {
     if (document.querySelector('.ig-unfollowers-floating-btn')) return;
 
@@ -38,7 +38,10 @@
     btn.className = 'ig-unfollowers-floating-btn';
     btn.title = 'Quem Não Me Segue no Instagram?';
     btn.setAttribute('aria-label', 'Quem Não Me Segue no Instagram');
-    btn.innerHTML = `<span>👥</span>`;
+    btn.innerHTML = `
+      <span class="ig-btn-icon">👥</span>
+      <span class="ig-btn-text">Quem Não Me Segue?</span>
+    `;
 
     btn.addEventListener('click', openModal);
     document.body.appendChild(btn);
