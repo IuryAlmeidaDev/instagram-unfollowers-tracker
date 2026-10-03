@@ -287,11 +287,14 @@
 
     try {
       // -------------------------------------------------------------
-      // FASE 1: Mapeia seguidores (em lotes rápidos de 100)
+      // FASE 1: Mapeia seguidores (em lotes rápidos com feedback ao vivo)
       // -------------------------------------------------------------
       const followersMap = new Map();
       let cursor = null;
       let hasMore = true;
+      let isEarlyReleased = false;
+
+      ensurePhase1Container();
 
       while (hasMore && !shouldStopScan) {
         const url = `/api/v1/friendships/${userId}/followers/?count=100${cursor ? `&max_id=${cursor}` : ''}`;
@@ -318,16 +321,17 @@
         if (streamingText) {
           streamingText.textContent = `Passo 1/2: Mapeando seguidores (${followersMap.size} identificados)...`;
         }
-        const phase1Detail = overlay.querySelector('#igPhase1Detail');
-        if (phase1Detail) {
-          phase1Detail.textContent = `${followersMap.size} seguidores mapeados...`;
-        }
+
+        updatePhase1Progress(followersMap.size, batch, () => {
+          isEarlyReleased = true;
+          hasMore = false;
+        });
 
         cursor = data.next_max_id;
-        hasMore = !!cursor;
+        hasMore = hasMore && !!cursor;
 
         if (hasMore && !shouldStopScan) {
-          await sleep(550 + Math.random() * 200);
+          await sleep(320 + Math.random() * 80);
         }
       }
 
@@ -348,6 +352,21 @@
 
       const listElem = overlay.querySelector('#igUserList');
       if (listElem) listElem.innerHTML = '';
+
+      // Se liberado antecipadamente, avisa com destaque no topo
+      if (isEarlyReleased) {
+        let earlyBanner = overlay.querySelector('#igEarlyWarningBanner');
+        if (!earlyBanner) {
+          earlyBanner = document.createElement('div');
+          earlyBanner.id = 'igEarlyWarningBanner';
+          earlyBanner.className = 'ig-unf-warning-banner';
+          earlyBanner.innerHTML = `⚠️ <strong>Modo Antecipado:</strong> Você liberou a lista com ${followersMap.size} seguidores mapeados. Amigos fora dessa amostra podem aparecer como não-seguidores. Sempre verifique o perfil antes de dar unfollow.`;
+          const toolbar = overlay.querySelector('.ig-unf-toolbar');
+          if (toolbar && toolbar.parentNode) {
+            toolbar.parentNode.insertBefore(earlyBanner, toolbar.nextSibling);
+          }
+        }
+      }
 
       while (hasMoreFollowing && !shouldStopScan) {
         const url = `/api/v1/friendships/${userId}/following/?count=100${followingCursor ? `&max_id=${followingCursor}` : ''}`;
@@ -388,7 +407,7 @@
         hasMoreFollowing = !!followingCursor;
 
         if (hasMoreFollowing && !shouldStopScan) {
-          await sleep(650 + Math.random() * 250);
+          await sleep(400 + Math.random() * 120);
         }
       }
 
@@ -546,19 +565,89 @@
     return card;
   }
 
+  // Garante a casca visual da Fase 1 (Indexação com feedback dinâmico contínuo)
+  function ensurePhase1Container() {
+    const listElem = overlay?.querySelector('#igUserList');
+    if (!listElem) return;
+
+    if (!listElem.querySelector('#igPhase1Container')) {
+      listElem.innerHTML = `
+        <div class="ig-unf-phase1-container" id="igPhase1Container">
+          <div class="ig-unf-phase1-header">
+            <span class="ig-unf-phase1-badge">⚡ Indexação de Base</span>
+            <div class="ig-unf-spinner-sm"></div>
+          </div>
+          <div class="ig-unf-phase1-title">Mapeando quem te segue</div>
+          <div class="ig-unf-phase1-desc">
+            Para garantir precisão e nunca marcar um amigo ou conhecido na lista de unfollow por engano, mapeamos os seguidores primeiro.
+          </div>
+
+          <div class="ig-unf-progress-track">
+            <div class="ig-unf-progress-bar" id="igPhase1ProgressBar" style="width: 15%;"></div>
+          </div>
+
+          <div class="ig-unf-phase1-stats">
+            <span id="igPhase1Count"><strong>0</strong> seguidores mapeados</span>
+            <span class="ig-unf-speed-tag">⚡ ~300 perfis/seg</span>
+          </div>
+
+          <div class="ig-unf-avatar-stream" id="igAvatarStream"></div>
+
+          <div class="ig-unf-early-action" id="igEarlyActionArea" style="display: none;">
+            <button class="ig-unf-early-btn" id="igEarlyReleaseBtn">
+              <span>${SVGS.play}</span>
+              <span id="igEarlyBtnText">Liberar lista agora com 100 seguidores</span>
+            </button>
+            <div class="ig-unf-early-hint">⚠️ Atenção: Liberar antecipadamente pode listar amigos como "não te seguem" se eles estiverem além dos que foram lidos.</div>
+          </div>
+        </div>
+      `;
+    }
+  }
+
+  // Atualiza os dados visuais durante a Fase 1
+  function updatePhase1Progress(count, recentBatch, onEarlyReleaseClick) {
+    ensurePhase1Container();
+
+    const countElem = overlay?.querySelector('#igPhase1Count');
+    if (countElem) {
+      countElem.innerHTML = `<strong>${count}</strong> seguidores mapeados`;
+    }
+
+    const progressBar = overlay?.querySelector('#igPhase1ProgressBar');
+    if (progressBar) {
+      const pct = Math.min(0.95, Math.max(0.15, (count / (count + 150))));
+      progressBar.style.transform = `scaleX(${pct})`;
+    }
+
+    const stream = overlay?.querySelector('#igAvatarStream');
+    if (stream && recentBatch && recentBatch.length > 0) {
+      const sample = recentBatch.slice(0, 7);
+      stream.innerHTML = sample.map(u => `
+        <img class="ig-unf-stream-avatar" src="${u.profile_pic_url || ''}" alt="@${u.username}" title="@${u.username}" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png';">
+      `).join('');
+    }
+
+    const earlyArea = overlay?.querySelector('#igEarlyActionArea');
+    const earlyBtn = overlay?.querySelector('#igEarlyReleaseBtn');
+    const earlyBtnText = overlay?.querySelector('#igEarlyBtnText');
+
+    if (count >= 100 && earlyArea && earlyBtn) {
+      earlyArea.style.display = 'flex';
+      if (earlyBtnText) {
+        earlyBtnText.textContent = `Liberar lista agora com ${count} seguidores`;
+      }
+      earlyBtn.onclick = onEarlyReleaseClick;
+    }
+  }
+
   // Renderização Incremental Suave
   function renderUserListIncremental() {
     const listElem = overlay?.querySelector('#igUserList');
     if (!listElem) return;
 
     if (isPhase1) {
-      listElem.innerHTML = `
-        <div class="ig-unf-scanning-state">
-          <div class="ig-unf-spinner"></div>
-          <div style="font-weight: 600; font-size: 14px; margin-top: 14px; color: #ffffff;">Mapeando seguidores para liberar os resultados...</div>
-          <div style="font-size: 12px; color: #a1a1aa; margin-top: 6px;" id="igPhase1Detail">Iniciando conexão rápida...</div>
-        </div>
-      `;
+      ensurePhase1Container();
       return;
     }
 
@@ -572,7 +661,7 @@
       return;
     }
 
-    const emptyMsg = listElem.querySelector('.ig-unf-empty-msg, .ig-unf-scanning-state');
+    const emptyMsg = listElem.querySelector('.ig-unf-empty-msg, .ig-unf-scanning-state, #igPhase1Container');
     if (emptyMsg) {
       listElem.innerHTML = '';
     }
@@ -601,13 +690,7 @@
     if (!listElem) return;
 
     if (isPhase1) {
-      listElem.innerHTML = `
-        <div class="ig-unf-scanning-state">
-          <div class="ig-unf-spinner"></div>
-          <div style="font-weight: 600; font-size: 14px; margin-top: 14px; color: #ffffff;">Mapeando seguidores para liberar os resultados...</div>
-          <div style="font-size: 12px; color: #a1a1aa; margin-top: 6px;" id="igPhase1Detail">Iniciando conexão rápida...</div>
-        </div>
-      `;
+      ensurePhase1Container();
       return;
     }
 

@@ -625,3 +625,173 @@
   color: #a1a1aa;
   font-size: 13px;
 }
+
+/* Painel de Indexação Rápida da Fase 1 */
+.ig-unf-phase1-container {
+  padding: 24px 20px;
+  background: #141416;
+  border: 1px solid #27272a;
+  border-radius: 12px;
+  text-align: center;
+  margin: 12px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.ig-unf-phase1-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.ig-unf-phase1-badge {
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #34d399;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.ig-unf-spinner-sm {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #27272a;
+  border-top-color: #34d399;
+  border-radius: 50%;
+  animation: igSpin 0.75s linear infinite;
+}
+
+.ig-unf-phase1-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 6px;
+}
+
+.ig-unf-phase1-desc {
+  font-size: 12px;
+  color: #a1a1aa;
+  max-width: 440px;
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.ig-unf-progress-track {
+  width: 100%;
+  max-width: 440px;
+  height: 6px;
+  background: #27272a;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.ig-unf-progress-bar {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, #833ab4, #fd1d1d, #fcb045);
+  border-radius: 3px;
+  transform-origin: left center;
+  transform: scaleX(0.15);
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ig-unf-phase1-stats {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 440px;
+  font-size: 12px;
+  color: #d4d4d8;
+  margin-bottom: 16px;
+}
+
+.ig-unf-speed-tag {
+  color: #10b981;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.ig-unf-avatar-stream {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 36px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.ig-unf-stream-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid #3f3f46;
+  object-fit: cover;
+  animation: igStreamPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes igStreamPop {
+  0% { transform: scale(0.6); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.ig-unf-early-action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding-top: 14px;
+  border-top: 1px solid #27272a;
+  width: 100%;
+  max-width: 440px;
+  animation: igFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ig-unf-early-btn {
+  background: #27272a;
+  border: 1px solid #3f3f46;
+  color: #ffffff;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.ig-unf-early-btn:hover {
+  background: #3f3f46;
+  border-color: #52525b;
+  transform: translateY(-1px);
+}
+
+.ig-unf-early-hint {
+  font-size: 11px;
+  color: #fbbf24;
+  line-height: 1.4;
+  max-width: 420px;
+}
+
+.ig-unf-warning-banner {
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  color: #fde68a;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 11px;
+  line-height: 1.4;
+  margin-bottom: 12px;
+  animation: igFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
