@@ -1,4 +1,4 @@
-// Content Script para Extensão: Quem Não Me Segue no Instagram
+// Content Script para Extensão: Quem Não Me Segue no Instagram (Impeccable Craft Edition)
 
 (function () {
   'use strict';
@@ -17,6 +17,21 @@
   let searchTerm = '';
 
   const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+  // Ícones SVG consistentes (sem emojis improvisados)
+  const SVGS = {
+    users: `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+    close: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`,
+    search: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>`,
+    download: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>`,
+    stop: `<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><rect width="18" height="18" x="3" y="3" rx="2"/></svg>`,
+    externalLink: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></svg>`,
+    verified: `<svg width="13" height="13" viewBox="0 0 24 24" fill="#0095f6"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>`,
+    check: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`,
+    play: `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>`,
+    lock: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`,
+    chart: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></svg>`
+  };
 
   // Obtém o ID do usuário logado via cookie ds_user_id
   function getLoggedInUserId() {
@@ -50,7 +65,7 @@
     btn.title = 'Quem Não Me Segue no Instagram?';
     btn.setAttribute('aria-label', 'Quem Não Me Segue no Instagram');
     btn.innerHTML = `
-      <span class="ig-btn-icon">👥</span>
+      <span class="ig-btn-icon">${SVGS.users}</span>
       <span class="ig-btn-text">Quem Não Me Segue?</span>
     `;
 
@@ -77,13 +92,13 @@
     overlay.className = 'ig-unf-overlay';
 
     overlay.innerHTML = `
-      <div class="ig-unf-modal">
+      <div class="ig-unf-modal" role="dialog" aria-modal="true" aria-labelledby="igModalTitle">
         <div class="ig-unf-header">
           <div class="ig-unf-title-group">
-            <div class="ig-unf-logo-badge">👥</div>
-            <div class="ig-unf-title">Detector de Não Seguidores</div>
+            <div class="ig-unf-logo-badge">${SVGS.users}</div>
+            <div class="ig-unf-title" id="igModalTitle">Detector de Não Seguidores</div>
           </div>
-          <button class="ig-unf-close-btn" id="igUnfClose">✕</button>
+          <button class="ig-unf-close-btn" id="igUnfClose" aria-label="Fechar painel">${SVGS.close}</button>
         </div>
 
         <div class="ig-unf-body" id="igUnfBody"></div>
@@ -110,10 +125,10 @@
     if (!userId) {
       body.innerHTML = `
         <div class="ig-unf-start-card">
-          <div class="ig-unf-big-icon">🔒</div>
-          <div class="ig-unf-start-title">Você precisa estar logado</div>
+          <div class="ig-unf-hero-icon">${SVGS.lock}</div>
+          <div class="ig-unf-start-title">Conecte-se à sua conta</div>
           <p class="ig-unf-start-desc">
-            Entre na sua conta do Instagram nesta aba para que a extensão possa analisar sua lista com segurança e sem pedir senhas.
+            Entre no Instagram nesta aba para que a extensão possa analisar sua lista de seguidores com segurança local, sem solicitar senhas.
           </p>
         </div>
       `;
@@ -122,13 +137,14 @@
 
     body.innerHTML = `
       <div class="ig-unf-start-card">
-        <div class="ig-unf-big-icon">⚡</div>
+        <div class="ig-unf-hero-icon">${SVGS.chart}</div>
         <div class="ig-unf-start-title">Descubra quem não te segue de volta</div>
         <p class="ig-unf-start-desc">
-          <strong>Liberação suave em tempo real:</strong> os perfis entram gradualmente na tela sem travamentos, com botões para deixar de seguir ou seguir de volta com 1 clique.
+          <strong>Liberação suave em tempo real:</strong> os perfis entram gradualmente na tela sem travamentos, com botões para deixar de seguir ou retribuir com 1 clique.
         </p>
         <button class="ig-unf-primary-btn" id="igStartScanBtn">
-          🚀 Iniciar Análise ao Vivo
+          <span>${SVGS.play}</span>
+          <span>Iniciar Análise ao Vivo</span>
         </button>
       </div>
     `;
@@ -161,14 +177,12 @@
     };
 
     try {
-      // Endpoint oficial web do Instagram
       let res = await fetch(`/api/v1/web/friendships/${targetUserId}/unfollow/`, {
         method: 'POST',
         headers: headers,
         credentials: 'include'
       });
 
-      // Fallback para rota web antiga se retornar 404
       if (res.status === 404) {
         res = await fetch(`/web/friendships/${targetUserId}/unfollow/`, {
           method: 'POST',
@@ -178,10 +192,10 @@
       }
 
       if (res.ok) {
-        btn.textContent = '✓ Deixou de seguir';
-        btn.style.background = '#262626';
-        btn.style.borderColor = '#333333';
-        btn.style.color = '#737373';
+        btn.innerHTML = `${SVGS.check} <span>Deixou de seguir</span>`;
+        btn.style.background = '#27272a';
+        btn.style.borderColor = '#38383e';
+        btn.style.color = '#71717a';
         btn.disabled = true;
       } else {
         const errText = await res.text().catch(() => '');
@@ -228,7 +242,7 @@
       }
 
       if (res.ok) {
-        btn.textContent = '✓ Seguindo';
+        btn.innerHTML = `${SVGS.check} <span>Seguindo</span>`;
         btn.style.background = '#059669';
         btn.style.color = '#ffffff';
         btn.disabled = true;
@@ -257,7 +271,6 @@
     currentTab = 'notFollowingBack';
     searchTerm = '';
 
-    // Abre a tela de resultados imediatamente (zero espera)
     renderResultsView(true);
 
     const streamingBanner = overlay.querySelector('#igStreamingBanner');
@@ -333,7 +346,6 @@
       let hasMoreFollowing = true;
       let totalFollowingChecked = 0;
 
-      // Remove a mensagem de carregamento inicial para começar a receber cards
       const listElem = overlay.querySelector('#igUserList');
       if (listElem) listElem.innerHTML = '';
 
@@ -356,7 +368,6 @@
         const batch = data.users || [];
         totalFollowingChecked += batch.length;
 
-        // Compara cada usuário deste lote em tempo real!
         batch.forEach(u => {
           const key = String(u.pk || u.id || u.pk_id);
           if (!followersMap.has(key)) {
@@ -367,12 +378,11 @@
           }
         });
 
-        // Atualiza contadores e injeta SUAVEMENTE os novos cards sem recriar os antigos!
         if (streamingText) {
           streamingText.textContent = `Liberando ao vivo: ${totalFollowingChecked} analisados (${scanResults.notFollowingBack.length} não te seguem)...`;
         }
         updateTabBadges();
-        renderUserListIncremental(); // Método suave sem piscar a tela
+        renderUserListIncremental();
 
         followingCursor = data.next_max_id;
         hasMoreFollowing = !!followingCursor;
@@ -394,7 +404,7 @@
         streamingBanner.style.borderColor = '#059669';
         streamingBanner.innerHTML = `
           <div class="ig-unf-streaming-info">
-            <span>✅</span>
+            <span>${SVGS.check}</span>
             <span><strong>Concluído:</strong> ${scanResults.notFollowingBack.length} pessoas não te seguem de volta.</span>
           </div>
         `;
@@ -421,28 +431,40 @@
           <div class="ig-unf-pulse-dot"></div>
           <span id="igStreamingText">Conectando e iniciando liberação ao vivo...</span>
         </div>
-        <button class="ig-unf-stop-btn" id="igStopScanBtn">⏹️ Parar</button>
+        <button class="ig-unf-stop-btn" id="igStopScanBtn">
+          <span>${SVGS.stop}</span>
+          <span>Parar</span>
+        </button>
       </div>
 
-      <div class="ig-unf-tabs">
-        <button class="ig-unf-tab-btn ${currentTab === 'notFollowingBack' ? 'active' : ''}" data-tab="notFollowingBack">
+      <div class="ig-unf-tabs" role="tablist">
+        <button class="ig-unf-tab-btn ${currentTab === 'notFollowingBack' ? 'active' : ''}" data-tab="notFollowingBack" role="tab" aria-selected="${currentTab === 'notFollowingBack'}">
           Não me seguem
           <span class="ig-unf-tab-badge">${scanResults.notFollowingBack.length}</span>
         </button>
-        <button class="ig-unf-tab-btn ${currentTab === 'fans' ? 'active' : ''}" data-tab="fans">
+        <button class="ig-unf-tab-btn ${currentTab === 'fans' ? 'active' : ''}" data-tab="fans" role="tab" aria-selected="${currentTab === 'fans'}">
           Fãs
           <span class="ig-unf-tab-badge">${scanResults.fans.length}</span>
         </button>
-        <button class="ig-unf-tab-btn ${currentTab === 'mutual' ? 'active' : ''}" data-tab="mutual">
+        <button class="ig-unf-tab-btn ${currentTab === 'mutual' ? 'active' : ''}" data-tab="mutual" role="tab" aria-selected="${currentTab === 'mutual'}">
           Mútuos
           <span class="ig-unf-tab-badge">${scanResults.mutual.length}</span>
         </button>
       </div>
 
       <div class="ig-unf-toolbar">
-        <input type="text" class="ig-unf-search-input" id="igSearchInput" placeholder="Pesquisar @arroba ou nome..." value="${searchTerm}">
-        <button class="ig-unf-export-btn" id="igExportTxt">📥 Exportar TXT</button>
-        <button class="ig-unf-export-btn" id="igExportCsv">📊 Exportar CSV</button>
+        <div class="ig-unf-search-wrapper">
+          <span class="ig-unf-search-icon">${SVGS.search}</span>
+          <input type="text" class="ig-unf-search-input" id="igSearchInput" placeholder="Pesquisar @arroba ou nome..." value="${searchTerm}" aria-label="Pesquisar perfis">
+        </div>
+        <button class="ig-unf-export-btn" id="igExportTxt">
+          <span>${SVGS.download}</span>
+          <span>TXT</span>
+        </button>
+        <button class="ig-unf-export-btn" id="igExportCsv">
+          <span>${SVGS.download}</span>
+          <span>CSV</span>
+        </button>
       </div>
 
       <div class="ig-unf-user-list" id="igUserList"></div>
@@ -452,8 +474,12 @@
     body.querySelectorAll('.ig-unf-tab-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         currentTab = btn.getAttribute('data-tab');
-        body.querySelectorAll('.ig-unf-tab-btn').forEach(b => b.classList.remove('active'));
+        body.querySelectorAll('.ig-unf-tab-btn').forEach(b => {
+          b.classList.remove('active');
+          b.setAttribute('aria-selected', 'false');
+        });
         btn.classList.add('active');
+        btn.setAttribute('aria-selected', 'true');
         renderUserListFull();
       });
     });
@@ -493,20 +519,20 @@
         <div class="ig-unf-names">
           <span class="ig-unf-username">
             @${user.username}
-            ${user.is_verified ? '<span title="Verificado" style="color: #0095f6;">✓</span>' : ''}
+            ${user.is_verified ? `<span title="Verificado">${SVGS.verified}</span>` : ''}
           </span>
           <span class="ig-unf-fullname">${user.full_name || ''}</span>
         </div>
       </div>
       <div class="ig-unf-actions-group">
         <a class="ig-unf-link-btn" href="https://www.instagram.com/${user.username}/" target="_blank" rel="noopener">
-          Ver Perfil ↗
+          <span>Ver Perfil</span>
+          <span>${SVGS.externalLink}</span>
         </a>
         ${actionBtnHtml}
       </div>
     `;
 
-    // Conecta os eventos de seguir/deseguir
     const unfollowBtn = card.querySelector('[data-action="unfollow"]');
     if (unfollowBtn) {
       unfollowBtn.addEventListener('click', () => handleUnfollow(user.pk || user.id || user.pk_id, unfollowBtn));
@@ -520,7 +546,7 @@
     return card;
   }
 
-  // Renderização Incremental Suave (Injeta apenas novos cards sem piscar os anteriores!)
+  // Renderização Incremental Suave
   function renderUserListIncremental() {
     const listElem = overlay?.querySelector('#igUserList');
     if (!listElem) return;
@@ -530,13 +556,12 @@
         <div class="ig-unf-scanning-state">
           <div class="ig-unf-spinner"></div>
           <div style="font-weight: 600; font-size: 14px; margin-top: 14px; color: #ffffff;">Mapeando seguidores para liberar os resultados...</div>
-          <div style="font-size: 12px; color: #a8a8a8; margin-top: 6px;" id="igPhase1Detail">Iniciando conexão rápida...</div>
+          <div style="font-size: 12px; color: #a1a1aa; margin-top: 6px;" id="igPhase1Detail">Iniciando conexão rápida...</div>
         </div>
       `;
       return;
     }
 
-    // Se houver pesquisa ativa, usa renderização normal com filtro
     if (searchTerm) {
       renderUserListFull();
       return;
@@ -547,19 +572,16 @@
       return;
     }
 
-    // Se havia mensagem de estado ou vazio, remove antes de adicionar cards
     const emptyMsg = listElem.querySelector('.ig-unf-empty-msg, .ig-unf-scanning-state');
     if (emptyMsg) {
       listElem.innerHTML = '';
     }
 
-    // Coleta IDs já existentes na tela
     const existingUids = new Set();
     listElem.querySelectorAll('[data-uid]').forEach(el => {
       existingUids.add(el.getAttribute('data-uid'));
     });
 
-    // Anexa suavemente apenas os que ainda não foram exibidos!
     const fragment = document.createDocumentFragment();
     currentList.forEach(user => {
       const uid = String(user.pk || user.id || user.pk_id);
@@ -573,7 +595,7 @@
     }
   }
 
-  // Renderização Completa (ao trocar de aba ou pesquisar texto)
+  // Renderização Completa
   function renderUserListFull() {
     const listElem = overlay?.querySelector('#igUserList');
     if (!listElem) return;
@@ -583,7 +605,7 @@
         <div class="ig-unf-scanning-state">
           <div class="ig-unf-spinner"></div>
           <div style="font-weight: 600; font-size: 14px; margin-top: 14px; color: #ffffff;">Mapeando seguidores para liberar os resultados...</div>
-          <div style="font-size: 12px; color: #a8a8a8; margin-top: 6px;" id="igPhase1Detail">Iniciando conexão rápida...</div>
+          <div style="font-size: 12px; color: #a1a1aa; margin-top: 6px;" id="igPhase1Detail">Iniciando conexão rápida...</div>
         </div>
       `;
       return;
@@ -602,7 +624,7 @@
     if (filtered.length === 0) {
       listElem.innerHTML = `
         <div class="ig-unf-empty-msg">
-          ${isScanning ? '⏳ Analisando... os primeiros perfis já vão surgir aqui!' : (searchTerm ? 'Nenhum usuário encontrado na pesquisa.' : 'Nenhum usuário nesta categoria! 🎉')}
+          ${isScanning ? 'Analisando em tempo real... os primeiros perfis já vão surgir aqui.' : (searchTerm ? 'Nenhum usuário encontrado na pesquisa.' : 'Nenhum usuário nesta categoria.')}
         </div>
       `;
       return;
