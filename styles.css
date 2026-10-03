@@ -54,7 +54,7 @@
 .ig-unf-modal {
   width: 100%;
   max-width: 580px;
-  max-height: 85vh;
+  height: 85vh;
   background: #121212;
   border: 1px solid #262626;
   border-radius: 16px;
@@ -120,12 +120,15 @@
   padding: 20px;
   overflow-y: auto;
   flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Tela de Início / Scanner */
 .ig-unf-start-card {
   text-align: center;
-  padding: 30px 20px;
+  padding: 40px 20px;
+  margin: auto;
 }
 
 .ig-unf-big-icon {
@@ -171,7 +174,7 @@
   transform: none;
 }
 
-/* Barra de Progresso */
+/* Barra de Progresso Inicial (Fase 1) */
 .ig-unf-progress-box {
   background: #181818;
   border-radius: 12px;
@@ -200,6 +203,62 @@
 .ig-unf-status-text {
   font-size: 13px;
   color: #a8a8a8;
+}
+
+/* Banner de Streaming ao Vivo (Fase 2 - Progressive Loading) */
+.ig-unf-streaming-banner {
+  background: #181818;
+  border: 1px solid #2e2e2e;
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+  color: #e0e0e0;
+  animation: igFadeIn 0.2s ease-out;
+}
+
+.ig-unf-streaming-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ig-unf-pulse-dot {
+  width: 9px;
+  height: 9px;
+  background-color: #10b981;
+  border-radius: 50%;
+  box-shadow: 0 0 10px #10b981;
+  animation: igPulse 1.4s infinite;
+  flex-shrink: 0;
+}
+
+@keyframes igPulse {
+  0% { transform: scale(0.85); opacity: 0.6; }
+  50% { transform: scale(1.25); opacity: 1; }
+  100% { transform: scale(0.85); opacity: 0.6; }
+}
+
+.ig-unf-stop-btn {
+  background: #2a2a2a;
+  border: 1px solid #444444;
+  color: #f87171;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+
+.ig-unf-stop-btn:hover {
+  background: #ef4444;
+  color: #ffffff;
 }
 
 /* Abas de Resultados */
@@ -287,6 +346,9 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  overflow-y: auto;
+  flex: 1;
+  padding-right: 4px;
 }
 
 .ig-unf-user-card {
@@ -297,7 +359,19 @@
   border: 1px solid #262626;
   border-radius: 10px;
   padding: 10px 14px;
-  transition: background 0.15s;
+  transition: background 0.15s, transform 0.15s;
+  animation: igCardSlide 0.2s ease-out;
+}
+
+@keyframes igCardSlide {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .ig-unf-user-card:hover {
@@ -360,7 +434,7 @@
 
 .ig-unf-empty-msg {
   text-align: center;
-  padding: 30px 10px;
+  padding: 40px 10px;
   color: #737373;
   font-size: 13px;
 }

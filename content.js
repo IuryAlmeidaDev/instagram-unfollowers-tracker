@@ -1,10 +1,12 @@
-// Content Script para Extensão: Quem Não Me Segue no Instagram
+// Content Script para Extensão: Quem Não Me Segue no Instagram (Progressive Streaming)
 
 (function () {
   'use strict';
 
   let overlay = null;
   let isScanning = false;
+  let shouldStopScan = false;
+
   let scanResults = {
     notFollowingBack: [],
     fans: [],
@@ -36,7 +38,6 @@
     document.body.appendChild(btn);
   }
 
-  // Abre ou exibe o modal
   function openModal() {
     if (!overlay) {
       createModal();
@@ -65,9 +66,7 @@
           <button class="ig-unf-close-btn" id="igUnfClose">✕</button>
         </div>
 
-        <div class="ig-unf-body" id="igUnfBody">
-          <!-- Renderizado dinamicamente -->
-        </div>
+        <div class="ig-unf-body" id="igUnfBody"></div>
       </div>
     `;
 
@@ -83,7 +82,7 @@
     renderInitialView();
   }
 
-  // Tela Inicial do Modal
+  // Tela Inicial
   function renderInitialView() {
     const body = overlay.querySelector('#igUnfBody');
     const userId = getLoggedInUserId();
@@ -94,7 +93,7 @@
           <div class="ig-unf-big-icon">🔒</div>
           <div class="ig-unf-start-title">Você precisa estar logado</div>
           <p class="ig-unf-start-desc">
-            Entre na sua conta do Instagram nesta aba para que a extensão possa ler sua lista com segurança e sem pedir senhas.
+            Entre na sua conta do Instagram nesta aba para que a extensão possa analisar sua lista com segurança e sem pedir senhas.
           </p>
         </div>
       `;
@@ -103,13 +102,13 @@
 
     body.innerHTML = `
       <div class="ig-unf-start-card">
-        <div class="ig-unf-big-icon">📊</div>
+        <div class="ig-unf-big-icon">⚡</div>
         <div class="ig-unf-start-title">Descubra quem não te segue de volta</div>
         <p class="ig-unf-start-desc">
-          A análise é 100% segura e roda localmente. Usamos pausas automáticas para respeitar os limites do Instagram e proteger sua conta.
+          <strong>Liberação progressiva em tempo real:</strong> os perfis começam a aparecer na sua tela imediatamente enquanto a busca acontece.
         </p>
         <button class="ig-unf-primary-btn" id="igStartScanBtn">
-          🚀 Iniciar Análise Segura
+          🚀 Iniciar Análise ao Vivo
         </button>
         <div id="igScanProgressContainer"></div>
       </div>
@@ -118,54 +117,28 @@
     body.querySelector('#igStartScanBtn').addEventListener('click', startScan);
   }
 
-  // Faz busca paginada com pausas de segurança
-  async function fetchFollowList(userId, type, onProgress) {
-    let users = [];
-    let cursor = null;
-    let hasMore = true;
+  // Atualiza os contadores das abas
+  function updateTabBadges() {
+    const notBadge = overlay?.querySelector('[data-tab="notFollowingBack"] .ig-unf-tab-badge');
+    const fansBadge = overlay?.querySelector('[data-tab="fans"] .ig-unf-tab-badge');
+    const mutualBadge = overlay?.querySelector('[data-tab="mutual"] .ig-unf-tab-badge');
 
-    while (hasMore) {
-      const url = `/api/v1/friendships/${userId}/${type}/?count=50${cursor ? `&max_id=${cursor}` : ''}`;
-      
-      const res = await fetch(url, {
-        headers: {
-          'X-IG-App-ID': '936619743392459',
-          'X-Requested-With': 'XMLHttpRequest'
-        },
-        credentials: 'include'
-      });
-
-      if (!res.ok) {
-        if (res.status === 429) {
-          throw new Error('Limite temporário atingido. Aguarde alguns minutos antes de tentar novamente.');
-        }
-        throw new Error(`Erro de conexão com o Instagram (${res.status})`);
-      }
-
-      const data = await res.json();
-      const batch = data.users || [];
-      users = users.concat(batch);
-
-      onProgress(users.length);
-
-      cursor = data.next_max_id;
-      hasMore = !!cursor;
-
-      if (hasMore) {
-        // Pausa segura de 1.2 a 1.6 segundos entre cada lote de 50
-        await sleep(1200 + Math.random() * 400);
-      }
-    }
-
-    return users;
+    if (notBadge) notBadge.textContent = scanResults.notFollowingBack.length;
+    if (fansBadge) fansBadge.textContent = scanResults.fans.length;
+    if (mutualBadge) mutualBadge.textContent = scanResults.mutual.length;
   }
 
-  // Inicia o processo de escaneamento
+  // Scanner Progressivo (libera os resultados em tempo real!)
   async function startScan() {
     const userId = getLoggedInUserId();
     if (!userId) return;
 
     isScanning = true;
+    shouldStopScan = false;
+    scanResults = { notFollowingBack: [], fans: [], mutual: [] };
+    currentTab = 'notFollowingBack';
+    searchTerm = '';
+
     const body = overlay.querySelector('#igUnfBody');
     const startBtn = body.querySelector('#igStartScanBtn');
     if (startBtn) startBtn.style.display = 'none';
@@ -173,9 +146,9 @@
     const progContainer = body.querySelector('#igScanProgressContainer');
     progContainer.innerHTML = `
       <div class="ig-unf-progress-box">
-        <div class="ig-unf-status-text" id="igStatusLabel">Buscando quem você segue...</div>
+        <div class="ig-unf-status-text" id="igStatusLabel">Indexando seus seguidores...</div>
         <div class="ig-unf-progress-bar-bg">
-          <div class="ig-unf-progress-bar-fill" id="igProgressFill" style="width: 15%;"></div>
+          <div class="ig-unf-progress-bar-fill" id="igProgressFill" style="width: 25%;"></div>
         </div>
       </div>
     `;
@@ -184,65 +157,162 @@
     const progressFill = progContainer.querySelector('#igProgressFill');
 
     try {
-      // 1. Buscar Following
-      statusLabel.textContent = 'Buscando pessoas que você segue (0)...';
-      const following = await fetchFollowList(userId, 'following', (count) => {
-        statusLabel.textContent = `Buscando pessoas que você segue (${count})...`;
-        progressFill.style.width = '35%';
-      });
-
-      // Pausa estratégica entre as duas listas
-      statusLabel.textContent = 'Pausa de segurança antibloqueio...';
-      progressFill.style.width = '50%';
-      await sleep(2000);
-
-      // 2. Buscar Followers
-      statusLabel.textContent = 'Buscando seus seguidores (0)...';
-      const followers = await fetchFollowList(userId, 'followers', (count) => {
-        statusLabel.textContent = `Buscando seus seguidores (${count})...`;
-        progressFill.style.width = '85%';
-      });
-
-      // 3. Comparação de listas
-      statusLabel.textContent = 'Processando listas...';
-      progressFill.style.width = '98%';
-      await sleep(400);
-
+      // -------------------------------------------------------------
+      // FASE 1: Carrega seguidores (para saber quem te segue)
+      // -------------------------------------------------------------
       const followersMap = new Map();
-      followers.forEach(u => followersMap.set(String(u.pk || u.id || u.pk_id), u));
+      let cursor = null;
+      let hasMore = true;
 
-      const followingMap = new Map();
-      following.forEach(u => followingMap.set(String(u.pk || u.id || u.pk_id), u));
+      while (hasMore && !shouldStopScan) {
+        const url = `/api/v1/friendships/${userId}/followers/?count=50${cursor ? `&max_id=${cursor}` : ''}`;
+        const res = await fetch(url, {
+          headers: {
+            'X-IG-App-ID': '936619743392459',
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          credentials: 'include'
+        });
 
-      // Quem você segue, mas não te segue de volta
-      scanResults.notFollowingBack = following.filter(u => !followersMap.has(String(u.pk || u.id || u.pk_id)));
+        if (!res.ok) {
+          if (res.status === 429) throw new Error('Limite temporário atingido. Aguarde alguns minutos.');
+          throw new Error(`Erro na conexão com o Instagram (${res.status})`);
+        }
 
-      // Fãs: quem te segue, mas você não segue
-      scanResults.fans = followers.filter(u => !followingMap.has(String(u.pk || u.id || u.pk_id)));
+        const data = await res.json();
+        const batch = data.users || [];
+        batch.forEach(u => {
+          const key = String(u.pk || u.id || u.pk_id);
+          followersMap.set(key, u);
+        });
 
-      // Mútuos
-      scanResults.mutual = following.filter(u => followersMap.has(String(u.pk || u.id || u.pk_id)));
+        statusLabel.textContent = `Indexando seus seguidores (${followersMap.size} identificados)...`;
+        progressFill.style.width = '60%';
 
+        cursor = data.next_max_id;
+        hasMore = !!cursor;
+
+        if (hasMore && !shouldStopScan) {
+          await sleep(1100 + Math.random() * 300);
+        }
+      }
+
+      if (shouldStopScan) {
+        isScanning = false;
+        renderInitialView();
+        return;
+      }
+
+      // -------------------------------------------------------------
+      // FASE 2: Transição imediata para a tela de resultados!
+      // Os dados de quem você segue serão comparados e liberados AOS POUCOS
+      // -------------------------------------------------------------
+      renderResultsView(true); // Exibe os cards imediatamente!
+
+      let followingCursor = null;
+      let hasMoreFollowing = true;
+      let totalFollowingChecked = 0;
+
+      const streamingBanner = overlay.querySelector('#igStreamingBanner');
+      const streamingText = overlay.querySelector('#igStreamingText');
+      const stopBtn = overlay.querySelector('#igStopScanBtn');
+
+      if (stopBtn) {
+        stopBtn.addEventListener('click', () => {
+          shouldStopScan = true;
+          stopBtn.textContent = 'Parando...';
+          stopBtn.disabled = true;
+        });
+      }
+
+      while (hasMoreFollowing && !shouldStopScan) {
+        const url = `/api/v1/friendships/${userId}/following/?count=50${followingCursor ? `&max_id=${followingCursor}` : ''}`;
+        const res = await fetch(url, {
+          headers: {
+            'X-IG-App-ID': '936619743392459',
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          credentials: 'include'
+        });
+
+        if (!res.ok) {
+          if (res.status === 429) throw new Error('Limite temporário atingido. Aguarde alguns minutos.');
+          throw new Error(`Erro na busca (${res.status})`);
+        }
+
+        const data = await res.json();
+        const batch = data.users || [];
+        totalFollowingChecked += batch.length;
+
+        // Compara cada usuário deste lote em tempo real!
+        batch.forEach(u => {
+          const key = String(u.pk || u.id || u.pk_id);
+          if (!followersMap.has(key)) {
+            // Não te segue de volta!
+            scanResults.notFollowingBack.push(u);
+          } else {
+            // Mútuo
+            scanResults.mutual.push(u);
+            followersMap.delete(key); // o que sobrar no mapa no fim são os fãs!
+          }
+        });
+
+        // Atualiza a tela IMEDIATAMENTE (Streaming progressivo)
+        if (streamingText) {
+          streamingText.textContent = `Analisando em tempo real: ${totalFollowingChecked} pessoas verificadas (${scanResults.notFollowingBack.length} não te seguem)...`;
+        }
+        updateTabBadges();
+        renderUserList();
+
+        followingCursor = data.next_max_id;
+        hasMoreFollowing = !!followingCursor;
+
+        if (hasMoreFollowing && !shouldStopScan) {
+          await sleep(1200 + Math.random() * 400);
+        }
+      }
+
+      // -------------------------------------------------------------
+      // FASE 3: Finalização
+      // -------------------------------------------------------------
+      scanResults.fans = Array.from(followersMap.values());
+      updateTabBadges();
       isScanning = false;
-      renderResultsView();
+
+      if (streamingBanner) {
+        streamingBanner.style.background = '#064e3b';
+        streamingBanner.style.borderColor = '#059669';
+        streamingBanner.innerHTML = `
+          <div class="ig-unf-streaming-info">
+            <span>✅</span>
+            <span><strong>Análise Finalizada:</strong> ${scanResults.notFollowingBack.length} pessoas não te seguem de volta.</span>
+          </div>
+        `;
+        setTimeout(() => {
+          streamingBanner.style.display = 'none';
+        }, 5000);
+      }
 
     } catch (err) {
       isScanning = false;
-      progContainer.innerHTML = `
-        <div style="color: #ef4444; font-size: 13px; margin-top: 14px;">
-          ❌ ${err.message}
-        </div>
-        <button class="ig-unf-export-btn" style="margin-top: 12px;" id="igRetryBtn">Tentar Novamente</button>
-      `;
-      progContainer.querySelector('#igRetryBtn')?.addEventListener('click', renderInitialView);
+      alert(`Erro durante a análise: ${err.message}`);
+      renderInitialView();
     }
   }
 
   // Renderiza a tela de resultados
-  function renderResultsView() {
+  function renderResultsView(isStreaming = false) {
     const body = overlay.querySelector('#igUnfBody');
 
     body.innerHTML = `
+      <div id="igStreamingBanner" class="ig-unf-streaming-banner" style="${isStreaming ? '' : 'display: none;'}">
+        <div class="ig-unf-streaming-info">
+          <div class="ig-unf-pulse-dot"></div>
+          <span id="igStreamingText">Analisando e liberando perfis ao vivo...</span>
+        </div>
+        <button class="ig-unf-stop-btn" id="igStopScanBtn">⏹️ Parar</button>
+      </div>
+
       <div class="ig-unf-tabs">
         <button class="ig-unf-tab-btn ${currentTab === 'notFollowingBack' ? 'active' : ''}" data-tab="notFollowingBack">
           Não me seguem
@@ -307,7 +377,7 @@
     if (filtered.length === 0) {
       listElem.innerHTML = `
         <div class="ig-unf-empty-msg">
-          ${searchTerm ? 'Nenhum usuário encontrado na pesquisa.' : 'Nenhum usuário nesta categoria! 🎉'}
+          ${isScanning ? '⏳ Buscando e filtrando os primeiros perfis...' : (searchTerm ? 'Nenhum usuário encontrado na pesquisa.' : 'Nenhum usuário nesta categoria! 🎉')}
         </div>
       `;
       return;
