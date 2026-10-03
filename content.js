@@ -6,6 +6,7 @@
   let overlay = null;
   let isScanning = false;
   let shouldStopScan = false;
+  let isPhase1 = false;
 
   let scanResults = {
     notFollowingBack: [],
@@ -110,7 +111,6 @@
         <button class="ig-unf-primary-btn" id="igStartScanBtn">
           🚀 Iniciar Análise ao Vivo
         </button>
-        <div id="igScanProgressContainer"></div>
       </div>
     `;
 
@@ -128,44 +128,43 @@
     if (mutualBadge) mutualBadge.textContent = scanResults.mutual.length;
   }
 
-  // Scanner Progressivo (libera os resultados em tempo real!)
+  // Scanner Progressivo
   async function startScan() {
     const userId = getLoggedInUserId();
     if (!userId) return;
 
     isScanning = true;
     shouldStopScan = false;
+    isPhase1 = true;
     scanResults = { notFollowingBack: [], fans: [], mutual: [] };
     currentTab = 'notFollowingBack';
     searchTerm = '';
 
-    const body = overlay.querySelector('#igUnfBody');
-    const startBtn = body.querySelector('#igStartScanBtn');
-    if (startBtn) startBtn.style.display = 'none';
+    // ABRE A TELA DE RESULTADOS IMEDIATAMENTE (SEM TELA DE ESPERA BLOQUEADA!)
+    renderResultsView(true);
 
-    const progContainer = body.querySelector('#igScanProgressContainer');
-    progContainer.innerHTML = `
-      <div class="ig-unf-progress-box">
-        <div class="ig-unf-status-text" id="igStatusLabel">Indexando seus seguidores...</div>
-        <div class="ig-unf-progress-bar-bg">
-          <div class="ig-unf-progress-bar-fill" id="igProgressFill" style="width: 25%;"></div>
-        </div>
-      </div>
-    `;
+    const streamingBanner = overlay.querySelector('#igStreamingBanner');
+    const streamingText = overlay.querySelector('#igStreamingText');
+    const stopBtn = overlay.querySelector('#igStopScanBtn');
 
-    const statusLabel = progContainer.querySelector('#igStatusLabel');
-    const progressFill = progContainer.querySelector('#igProgressFill');
+    if (stopBtn) {
+      stopBtn.addEventListener('click', () => {
+        shouldStopScan = true;
+        stopBtn.textContent = 'Parando...';
+        stopBtn.disabled = true;
+      });
+    }
 
     try {
       // -------------------------------------------------------------
-      // FASE 1: Carrega seguidores (para saber quem te segue)
+      // FASE 1: Carrega seguidores (em lotes de 100 de forma super rápida)
       // -------------------------------------------------------------
       const followersMap = new Map();
       let cursor = null;
       let hasMore = true;
 
       while (hasMore && !shouldStopScan) {
-        const url = `/api/v1/friendships/${userId}/followers/?count=50${cursor ? `&max_id=${cursor}` : ''}`;
+        const url = `/api/v1/friendships/${userId}/followers/?count=100${cursor ? `&max_id=${cursor}` : ''}`;
         const res = await fetch(url, {
           headers: {
             'X-IG-App-ID': '936619743392459',
@@ -186,47 +185,39 @@
           followersMap.set(key, u);
         });
 
-        statusLabel.textContent = `Indexando seus seguidores (${followersMap.size} identificados)...`;
-        progressFill.style.width = '60%';
+        if (streamingText) {
+          streamingText.textContent = `Passo 1/2: Mapeando seguidores (${followersMap.size} identificados)...`;
+        }
+        const phase1Detail = overlay.querySelector('#igPhase1Detail');
+        if (phase1Detail) {
+          phase1Detail.textContent = `${followersMap.size} seguidores já mapeados...`;
+        }
 
         cursor = data.next_max_id;
         hasMore = !!cursor;
 
         if (hasMore && !shouldStopScan) {
-          await sleep(1100 + Math.random() * 300);
+          await sleep(550 + Math.random() * 200); // Rápido e suave
         }
       }
 
       if (shouldStopScan) {
         isScanning = false;
+        isPhase1 = false;
         renderInitialView();
         return;
       }
 
       // -------------------------------------------------------------
-      // FASE 2: Transição imediata para a tela de resultados!
-      // Os dados de quem você segue serão comparados e liberados AOS POUCOS
+      // FASE 2: Streaming e liberação instantânea dos cards!
       // -------------------------------------------------------------
-      renderResultsView(true); // Exibe os cards imediatamente!
-
+      isPhase1 = false;
       let followingCursor = null;
       let hasMoreFollowing = true;
       let totalFollowingChecked = 0;
 
-      const streamingBanner = overlay.querySelector('#igStreamingBanner');
-      const streamingText = overlay.querySelector('#igStreamingText');
-      const stopBtn = overlay.querySelector('#igStopScanBtn');
-
-      if (stopBtn) {
-        stopBtn.addEventListener('click', () => {
-          shouldStopScan = true;
-          stopBtn.textContent = 'Parando...';
-          stopBtn.disabled = true;
-        });
-      }
-
       while (hasMoreFollowing && !shouldStopScan) {
-        const url = `/api/v1/friendships/${userId}/following/?count=50${followingCursor ? `&max_id=${followingCursor}` : ''}`;
+        const url = `/api/v1/friendships/${userId}/following/?count=100${followingCursor ? `&max_id=${followingCursor}` : ''}`;
         const res = await fetch(url, {
           headers: {
             'X-IG-App-ID': '936619743392459',
@@ -248,18 +239,16 @@
         batch.forEach(u => {
           const key = String(u.pk || u.id || u.pk_id);
           if (!followersMap.has(key)) {
-            // Não te segue de volta!
             scanResults.notFollowingBack.push(u);
           } else {
-            // Mútuo
             scanResults.mutual.push(u);
-            followersMap.delete(key); // o que sobrar no mapa no fim são os fãs!
+            followersMap.delete(key);
           }
         });
 
-        // Atualiza a tela IMEDIATAMENTE (Streaming progressivo)
+        // Atualiza a tela instantaneamente!
         if (streamingText) {
-          streamingText.textContent = `Analisando em tempo real: ${totalFollowingChecked} pessoas verificadas (${scanResults.notFollowingBack.length} não te seguem)...`;
+          streamingText.textContent = `Liberando ao vivo: ${totalFollowingChecked} analisados (${scanResults.notFollowingBack.length} não te seguem)...`;
         }
         updateTabBadges();
         renderUserList();
@@ -268,7 +257,7 @@
         hasMoreFollowing = !!followingCursor;
 
         if (hasMoreFollowing && !shouldStopScan) {
-          await sleep(1200 + Math.random() * 400);
+          await sleep(650 + Math.random() * 250);
         }
       }
 
@@ -285,7 +274,7 @@
         streamingBanner.innerHTML = `
           <div class="ig-unf-streaming-info">
             <span>✅</span>
-            <span><strong>Análise Finalizada:</strong> ${scanResults.notFollowingBack.length} pessoas não te seguem de volta.</span>
+            <span><strong>Concluído:</strong> ${scanResults.notFollowingBack.length} pessoas não te seguem de volta.</span>
           </div>
         `;
         setTimeout(() => {
@@ -295,6 +284,7 @@
 
     } catch (err) {
       isScanning = false;
+      isPhase1 = false;
       alert(`Erro durante a análise: ${err.message}`);
       renderInitialView();
     }
@@ -308,7 +298,7 @@
       <div id="igStreamingBanner" class="ig-unf-streaming-banner" style="${isStreaming ? '' : 'display: none;'}">
         <div class="ig-unf-streaming-info">
           <div class="ig-unf-pulse-dot"></div>
-          <span id="igStreamingText">Analisando e liberando perfis ao vivo...</span>
+          <span id="igStreamingText">Conectando e iniciando liberação ao vivo...</span>
         </div>
         <button class="ig-unf-stop-btn" id="igStopScanBtn">⏹️ Parar</button>
       </div>
@@ -366,6 +356,18 @@
     const listElem = overlay.querySelector('#igUserList');
     if (!listElem) return;
 
+    // Se estiver no comecinho (Fase 1 mapeando seguidores)
+    if (isPhase1) {
+      listElem.innerHTML = `
+        <div class="ig-unf-scanning-state">
+          <div class="ig-unf-spinner"></div>
+          <div style="font-weight: 600; font-size: 14px; margin-top: 14px; color: #ffffff;">Mapeando seguidores para liberar os resultados...</div>
+          <div style="font-size: 12px; color: #a8a8a8; margin-top: 6px;" id="igPhase1Detail">Iniciando conexão rápida...</div>
+        </div>
+      `;
+      return;
+    }
+
     const list = scanResults[currentTab] || [];
     const filtered = list.filter(u => {
       if (!searchTerm) return true;
@@ -377,7 +379,7 @@
     if (filtered.length === 0) {
       listElem.innerHTML = `
         <div class="ig-unf-empty-msg">
-          ${isScanning ? '⏳ Buscando e filtrando os primeiros perfis...' : (searchTerm ? 'Nenhum usuário encontrado na pesquisa.' : 'Nenhum usuário nesta categoria! 🎉')}
+          ${isScanning ? '⏳ Analisando... os primeiros perfis já vão surgir aqui!' : (searchTerm ? 'Nenhum usuário encontrado na pesquisa.' : 'Nenhum usuário nesta categoria! 🎉')}
         </div>
       `;
       return;
