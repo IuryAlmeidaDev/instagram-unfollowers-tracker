@@ -1,4 +1,4 @@
-// Content Script para Extensão: Quem Não Me Segue no Instagram (Progressive Streaming)
+// Content Script para Extensão: Quem Não Me Segue no Instagram
 
 (function () {
   'use strict';
@@ -24,16 +24,21 @@
     return match ? match[1] : null;
   }
 
-  // Cria o botão flutuante na página do Instagram
+  // Obtém o token CSRF para realizar ações de seguir/deseguir
+  function getCsrfToken() {
+    const match = document.cookie.match(/csrftoken=([^;]+)/);
+    return match ? match[1] : '';
+  }
+
+  // Cria o botão flutuante redondo no meio da lateral direita
   function injectFloatingButton() {
     if (document.querySelector('.ig-unfollowers-floating-btn')) return;
 
     const btn = document.createElement('button');
     btn.className = 'ig-unfollowers-floating-btn';
-    btn.innerHTML = `
-      <span>👥</span>
-      <span>Quem Não Me Segue?</span>
-    `;
+    btn.title = 'Quem Não Me Segue no Instagram?';
+    btn.setAttribute('aria-label', 'Quem Não Me Segue no Instagram');
+    btn.innerHTML = `<span>👥</span>`;
 
     btn.addEventListener('click', openModal);
     document.body.appendChild(btn);
@@ -52,7 +57,7 @@
     }
   }
 
-  // Cria a estrutura visual do modal
+  // Cria o modal visual
   function createModal() {
     overlay = document.createElement('div');
     overlay.className = 'ig-unf-overlay';
@@ -106,7 +111,7 @@
         <div class="ig-unf-big-icon">⚡</div>
         <div class="ig-unf-start-title">Descubra quem não te segue de volta</div>
         <p class="ig-unf-start-desc">
-          <strong>Liberação progressiva em tempo real:</strong> os perfis começam a aparecer na sua tela imediatamente enquanto a busca acontece.
+          <strong>Liberação suave em tempo real:</strong> os perfis entram gradualmente na tela sem travamentos, com botões para deixar de seguir ou seguir de volta com 1 clique.
         </p>
         <button class="ig-unf-primary-btn" id="igStartScanBtn">
           🚀 Iniciar Análise ao Vivo
@@ -128,6 +133,71 @@
     if (mutualBadge) mutualBadge.textContent = scanResults.mutual.length;
   }
 
+  // Ação de Deixar de Seguir direto pelo card
+  async function handleUnfollow(targetUserId, btn) {
+    btn.disabled = true;
+    btn.textContent = 'Deixando...';
+
+    try {
+      const res = await fetch(`/api/v1/friendships/destroy/${targetUserId}/`, {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': getCsrfToken(),
+          'X-IG-App-ID': '936619743392459',
+          'X-Requested-With': 'XMLHttpRequest',
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: `user_id=${targetUserId}`,
+        credentials: 'include'
+      });
+
+      if (res.ok) {
+        btn.textContent = '✓ Deixou de seguir';
+        btn.style.background = '#262626';
+        btn.style.borderColor = '#333333';
+        btn.style.color = '#737373';
+      } else {
+        btn.textContent = 'Tentar de novo';
+        btn.disabled = false;
+      }
+    } catch (e) {
+      btn.textContent = 'Erro ao deseguir';
+      btn.disabled = false;
+    }
+  }
+
+  // Ação de Seguir de Volta (Fãs) direto pelo card
+  async function handleFollow(targetUserId, btn) {
+    btn.disabled = true;
+    btn.textContent = 'Seguindo...';
+
+    try {
+      const res = await fetch(`/api/v1/friendships/create/${targetUserId}/`, {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': getCsrfToken(),
+          'X-IG-App-ID': '936619743392459',
+          'X-Requested-With': 'XMLHttpRequest',
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: `user_id=${targetUserId}`,
+        credentials: 'include'
+      });
+
+      if (res.ok) {
+        btn.textContent = '✓ Seguindo';
+        btn.style.background = '#059669';
+        btn.style.color = '#ffffff';
+      } else {
+        btn.textContent = 'Tentar de novo';
+        btn.disabled = false;
+      }
+    } catch (e) {
+      btn.textContent = 'Erro ao seguir';
+      btn.disabled = false;
+    }
+  }
+
   // Scanner Progressivo
   async function startScan() {
     const userId = getLoggedInUserId();
@@ -140,7 +210,7 @@
     currentTab = 'notFollowingBack';
     searchTerm = '';
 
-    // ABRE A TELA DE RESULTADOS IMEDIATAMENTE (SEM TELA DE ESPERA BLOQUEADA!)
+    // Abre a tela de resultados imediatamente (zero espera)
     renderResultsView(true);
 
     const streamingBanner = overlay.querySelector('#igStreamingBanner');
@@ -157,7 +227,7 @@
 
     try {
       // -------------------------------------------------------------
-      // FASE 1: Carrega seguidores (em lotes de 100 de forma super rápida)
+      // FASE 1: Mapeia seguidores (em lotes rápidos de 100)
       // -------------------------------------------------------------
       const followersMap = new Map();
       let cursor = null;
@@ -190,14 +260,14 @@
         }
         const phase1Detail = overlay.querySelector('#igPhase1Detail');
         if (phase1Detail) {
-          phase1Detail.textContent = `${followersMap.size} seguidores já mapeados...`;
+          phase1Detail.textContent = `${followersMap.size} seguidores mapeados...`;
         }
 
         cursor = data.next_max_id;
         hasMore = !!cursor;
 
         if (hasMore && !shouldStopScan) {
-          await sleep(550 + Math.random() * 200); // Rápido e suave
+          await sleep(550 + Math.random() * 200);
         }
       }
 
@@ -209,12 +279,16 @@
       }
 
       // -------------------------------------------------------------
-      // FASE 2: Streaming e liberação instantânea dos cards!
+      // FASE 2: Streaming e liberação suave dos cards!
       // -------------------------------------------------------------
       isPhase1 = false;
       let followingCursor = null;
       let hasMoreFollowing = true;
       let totalFollowingChecked = 0;
+
+      // Remove a mensagem de carregamento inicial para começar a receber cards
+      const listElem = overlay.querySelector('#igUserList');
+      if (listElem) listElem.innerHTML = '';
 
       while (hasMoreFollowing && !shouldStopScan) {
         const url = `/api/v1/friendships/${userId}/following/?count=100${followingCursor ? `&max_id=${followingCursor}` : ''}`;
@@ -246,12 +320,12 @@
           }
         });
 
-        // Atualiza a tela instantaneamente!
+        // Atualiza contadores e injeta SUAVEMENTE os novos cards sem recriar os antigos!
         if (streamingText) {
           streamingText.textContent = `Liberando ao vivo: ${totalFollowingChecked} analisados (${scanResults.notFollowingBack.length} não te seguem)...`;
         }
         updateTabBadges();
-        renderUserList();
+        renderUserListIncremental(); // Método suave sem piscar a tela
 
         followingCursor = data.next_max_id;
         hasMoreFollowing = !!followingCursor;
@@ -290,7 +364,7 @@
     }
   }
 
-  // Renderiza a tela de resultados
+  // Renderiza a casca da tela de resultados
   function renderResultsView(isStreaming = false) {
     const body = overlay.querySelector('#igUnfBody');
 
@@ -333,7 +407,7 @@
         currentTab = btn.getAttribute('data-tab');
         body.querySelectorAll('.ig-unf-tab-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        renderUserList();
+        renderUserListFull();
       });
     });
 
@@ -341,22 +415,122 @@
     const searchInput = body.querySelector('#igSearchInput');
     searchInput.addEventListener('input', (e) => {
       searchTerm = e.target.value.toLowerCase().trim();
-      renderUserList();
+      renderUserListFull();
     });
 
     // Exportação
     body.querySelector('#igExportTxt').addEventListener('click', () => exportData('txt'));
     body.querySelector('#igExportCsv').addEventListener('click', () => exportData('csv'));
 
-    renderUserList();
+    renderUserListFull();
   }
 
-  // Renderiza a lista de usuários da aba ativa com filtro
-  function renderUserList() {
-    const listElem = overlay.querySelector('#igUserList');
+  // Cria o elemento HTML de um único card de usuário
+  function createUserCardElement(user, category) {
+    const card = document.createElement('div');
+    card.className = 'ig-unf-user-card';
+    card.setAttribute('data-uid', String(user.pk || user.id || user.pk_id));
+
+    let actionBtnHtml = '';
+    if (category === 'notFollowingBack') {
+      actionBtnHtml = `<button class="ig-unf-unfollow-btn" data-action="unfollow">Deixar de Seguir</button>`;
+    } else if (category === 'fans') {
+      actionBtnHtml = `<button class="ig-unf-follow-btn" data-action="follow">Seguir de Volta</button>`;
+    } else {
+      actionBtnHtml = `<span class="ig-unf-mutual-badge">Mútuo ✓</span>`;
+    }
+
+    card.innerHTML = `
+      <div class="ig-unf-user-info">
+        <img class="ig-unf-avatar" src="${user.profile_pic_url || ''}" alt="${user.username}" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png';">
+        <div class="ig-unf-names">
+          <span class="ig-unf-username">
+            @${user.username}
+            ${user.is_verified ? '<span title="Verificado" style="color: #0095f6;">✓</span>' : ''}
+          </span>
+          <span class="ig-unf-fullname">${user.full_name || ''}</span>
+        </div>
+      </div>
+      <div class="ig-unf-actions-group">
+        <a class="ig-unf-link-btn" href="https://www.instagram.com/${user.username}/" target="_blank" rel="noopener">
+          Ver Perfil ↗
+        </a>
+        ${actionBtnHtml}
+      </div>
+    `;
+
+    // Conecta os eventos de seguir/deseguir
+    const unfollowBtn = card.querySelector('[data-action="unfollow"]');
+    if (unfollowBtn) {
+      unfollowBtn.addEventListener('click', () => handleUnfollow(user.pk || user.id || user.pk_id, unfollowBtn));
+    }
+
+    const followBtn = card.querySelector('[data-action="follow"]');
+    if (followBtn) {
+      followBtn.addEventListener('click', () => handleFollow(user.pk || user.id || user.pk_id, followBtn));
+    }
+
+    return card;
+  }
+
+  // Renderização Incremental Suave (Injeta apenas novos cards sem piscar os anteriores!)
+  function renderUserListIncremental() {
+    const listElem = overlay?.querySelector('#igUserList');
     if (!listElem) return;
 
-    // Se estiver no comecinho (Fase 1 mapeando seguidores)
+    if (isPhase1) {
+      listElem.innerHTML = `
+        <div class="ig-unf-scanning-state">
+          <div class="ig-unf-spinner"></div>
+          <div style="font-weight: 600; font-size: 14px; margin-top: 14px; color: #ffffff;">Mapeando seguidores para liberar os resultados...</div>
+          <div style="font-size: 12px; color: #a8a8a8; margin-top: 6px;" id="igPhase1Detail">Iniciando conexão rápida...</div>
+        </div>
+      `;
+      return;
+    }
+
+    // Se houver pesquisa ativa, usa renderização normal com filtro
+    if (searchTerm) {
+      renderUserListFull();
+      return;
+    }
+
+    const currentList = scanResults[currentTab] || [];
+    if (currentList.length === 0) {
+      return;
+    }
+
+    // Se havia mensagem de estado ou vazio, remove antes de adicionar cards
+    const emptyMsg = listElem.querySelector('.ig-unf-empty-msg, .ig-unf-scanning-state');
+    if (emptyMsg) {
+      listElem.innerHTML = '';
+    }
+
+    // Coleta IDs já existentes na tela
+    const existingUids = new Set();
+    listElem.querySelectorAll('[data-uid]').forEach(el => {
+      existingUids.add(el.getAttribute('data-uid'));
+    });
+
+    // Anexa suavemente apenas os que ainda não foram exibidos!
+    const fragment = document.createDocumentFragment();
+    currentList.forEach(user => {
+      const uid = String(user.pk || user.id || user.pk_id);
+      if (!existingUids.has(uid)) {
+        fragment.appendChild(createUserCardElement(user, currentTab));
+      }
+    });
+
+    if (fragment.children.length > 0) {
+      listElem.appendChild(fragment);
+    }
+  }
+
+  // Renderização Completa (ao trocar de aba ou pesquisar texto)
+  function renderUserListFull() {
+    const listElem = overlay?.querySelector('#igUserList');
+    if (!listElem) return;
+
     if (isPhase1) {
       listElem.innerHTML = `
         <div class="ig-unf-scanning-state">
@@ -376,6 +550,8 @@
       return uname.includes(searchTerm) || fname.includes(searchTerm);
     });
 
+    listElem.innerHTML = '';
+
     if (filtered.length === 0) {
       listElem.innerHTML = `
         <div class="ig-unf-empty-msg">
@@ -385,23 +561,12 @@
       return;
     }
 
-    listElem.innerHTML = filtered.map(user => `
-      <div class="ig-unf-user-card">
-        <div class="ig-unf-user-info">
-          <img class="ig-unf-avatar" src="${user.profile_pic_url || ''}" alt="${user.username}" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png';">
-          <div class="ig-unf-names">
-            <span class="ig-unf-username">
-              @${user.username}
-              ${user.is_verified ? '<span title="Verificado" style="color: #0095f6;">✓</span>' : ''}
-            </span>
-            <span class="ig-unf-fullname">${user.full_name || ''}</span>
-          </div>
-        </div>
-        <a class="ig-unf-link-btn" href="https://www.instagram.com/${user.username}/" target="_blank" rel="noopener">
-          Ver Perfil ↗
-        </a>
-      </div>
-    `).join('');
+    const fragment = document.createDocumentFragment();
+    filtered.forEach(user => {
+      fragment.appendChild(createUserCardElement(user, currentTab));
+    });
+
+    listElem.appendChild(fragment);
   }
 
   // Exportar dados
