@@ -27,7 +27,18 @@
   // Obtém o token CSRF para realizar ações de seguir/deseguir
   function getCsrfToken() {
     const match = document.cookie.match(/csrftoken=([^;]+)/);
-    return match ? match[1] : '';
+    if (match && match[1]) return match[1];
+
+    try {
+      if (window._sharedData && window._sharedData.config && window._sharedData.config.csrf_token) {
+        return window._sharedData.config.csrf_token;
+      }
+    } catch (e) {}
+
+    const meta = document.querySelector('meta[name="csrf-token"]') || document.querySelector('input[name="csrfmiddlewaretoken"]');
+    if (meta) return meta.value || meta.content || '';
+
+    return '';
   }
 
   // Cria o botão flutuante proeminente no meio da lateral direita
@@ -141,30 +152,49 @@
     btn.disabled = true;
     btn.textContent = 'Deixando...';
 
+    const csrf = getCsrfToken();
+    const headers = {
+      'X-CSRFToken': csrf,
+      'X-IG-App-ID': '936619743392459',
+      'X-Requested-With': 'XMLHttpRequest',
+      'Content-Type': 'application/x-www-form-urlencoded'
+    };
+
     try {
-      const res = await fetch(`/api/v1/friendships/destroy/${targetUserId}/`, {
+      // Endpoint oficial web do Instagram
+      let res = await fetch(`/api/v1/web/friendships/${targetUserId}/unfollow/`, {
         method: 'POST',
-        headers: {
-          'X-CSRFToken': getCsrfToken(),
-          'X-IG-App-ID': '936619743392459',
-          'X-Requested-With': 'XMLHttpRequest',
-          'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        body: `user_id=${targetUserId}`,
+        headers: headers,
         credentials: 'include'
       });
+
+      // Fallback para rota web antiga se retornar 404
+      if (res.status === 404) {
+        res = await fetch(`/web/friendships/${targetUserId}/unfollow/`, {
+          method: 'POST',
+          headers: headers,
+          credentials: 'include'
+        });
+      }
 
       if (res.ok) {
         btn.textContent = '✓ Deixou de seguir';
         btn.style.background = '#262626';
         btn.style.borderColor = '#333333';
         btn.style.color = '#737373';
+        btn.disabled = true;
       } else {
-        btn.textContent = 'Tentar de novo';
+        const errText = await res.text().catch(() => '');
+        console.error('Erro ao deixar de seguir:', res.status, errText);
+        btn.textContent = 'Tentar no perfil ↗';
         btn.disabled = false;
+        btn.onclick = () => {
+          window.open(`https://www.instagram.com/web/friendships/${targetUserId}/`, '_blank');
+        };
       }
     } catch (e) {
-      btn.textContent = 'Erro ao deseguir';
+      console.error('Erro de rede ao deseguir:', e);
+      btn.textContent = 'Erro de rede';
       btn.disabled = false;
     }
   }
@@ -174,29 +204,43 @@
     btn.disabled = true;
     btn.textContent = 'Seguindo...';
 
+    const csrf = getCsrfToken();
+    const headers = {
+      'X-CSRFToken': csrf,
+      'X-IG-App-ID': '936619743392459',
+      'X-Requested-With': 'XMLHttpRequest',
+      'Content-Type': 'application/x-www-form-urlencoded'
+    };
+
     try {
-      const res = await fetch(`/api/v1/friendships/create/${targetUserId}/`, {
+      let res = await fetch(`/api/v1/web/friendships/${targetUserId}/follow/`, {
         method: 'POST',
-        headers: {
-          'X-CSRFToken': getCsrfToken(),
-          'X-IG-App-ID': '936619743392459',
-          'X-Requested-With': 'XMLHttpRequest',
-          'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        body: `user_id=${targetUserId}`,
+        headers: headers,
         credentials: 'include'
       });
+
+      if (res.status === 404) {
+        res = await fetch(`/web/friendships/${targetUserId}/follow/`, {
+          method: 'POST',
+          headers: headers,
+          credentials: 'include'
+        });
+      }
 
       if (res.ok) {
         btn.textContent = '✓ Seguindo';
         btn.style.background = '#059669';
         btn.style.color = '#ffffff';
+        btn.disabled = true;
       } else {
+        const errText = await res.text().catch(() => '');
+        console.error('Erro ao seguir:', res.status, errText);
         btn.textContent = 'Tentar de novo';
         btn.disabled = false;
       }
     } catch (e) {
-      btn.textContent = 'Erro ao seguir';
+      console.error('Erro de rede ao seguir:', e);
+      btn.textContent = 'Erro de rede';
       btn.disabled = false;
     }
   }
