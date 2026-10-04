@@ -1,4 +1,4 @@
-// Content Script para Extensão: Quem Não Me Segue no Instagram (Impeccable Craft Edition)
+// Content Script para Extensão: Quem Não Me Segue no Instagram (Impeccable Freemium & PRO Edition)
 
 (function () {
   'use strict';
@@ -7,18 +7,27 @@
   let isScanning = false;
   let shouldStopScan = false;
   let isPhase1 = false;
+  let isEarlyReleased = false;
+
+  // Estado do Plano PRO e Recursos Avançados
+  let isPro = false;
+  let vipWhitelist = new Set();
+  let selectedUids = new Set();
+  let isBatchRunning = false;
+  let shouldStopBatch = false;
 
   let scanResults = {
     notFollowingBack: [],
     fans: [],
-    mutual: []
+    mutual: [],
+    recentUnfollowers: []
   };
   let currentTab = 'notFollowingBack';
   let searchTerm = '';
 
   const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-  // Ícones SVG consistentes (sem emojis improvisados)
+  // Ícones SVG consistentes e profissionais
   const SVGS = {
     users: `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
     close: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`,
@@ -30,7 +39,14 @@
     check: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`,
     play: `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>`,
     lock: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`,
-    chart: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></svg>`
+    chart: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></svg>`,
+    crown: `<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="m2 4 3 12h14l3-12-6 7-4-7-4 7-6-7zm3 14h14v2H5v-2z"/></svg>`,
+    star: `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`,
+    starOutline: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`,
+    shield: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`,
+    sparkles: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>`,
+    alert: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+    trash: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`
   };
 
   // Obtém o ID do usuário logado via cookie ds_user_id
@@ -56,7 +72,108 @@
     return '';
   }
 
-  // Cria o botão flutuante proeminente no meio da lateral direita
+  // -------------------------------------------------------------
+  // GERENCIADOR DE ESTADO PRO E ARMAZENAMENTO LOCAL
+  // -------------------------------------------------------------
+  async function loadProStatus() {
+    return new Promise((resolve) => {
+      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+        chrome.storage.local.get(['ig_is_pro', 'ig_pro_license'], (res) => {
+          isPro = !!res.ig_is_pro;
+          resolve(isPro);
+        });
+      } else {
+        isPro = false;
+        resolve(false);
+      }
+    });
+  }
+
+  async function activateLicense(key) {
+    const clean = (key || '').trim().toUpperCase();
+    if (clean === 'PRO-VIP-2026' || clean.startsWith('IGPRO-')) {
+      isPro = true;
+      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+        await new Promise(r => chrome.storage.local.set({ ig_is_pro: true, ig_pro_license: clean }, r));
+      }
+      updateProUiState();
+      return { success: true, message: 'Plano PRO ativado com sucesso! Aproveite todos os recursos.' };
+    }
+    return { success: false, message: 'Chave inválida. Use a chave de teste PRO-VIP-2026.' };
+  }
+
+  async function loadVipWhitelist() {
+    return new Promise((resolve) => {
+      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+        chrome.storage.local.get(['ig_vip_whitelist'], (res) => {
+          const list = res.ig_vip_whitelist || [];
+          vipWhitelist = new Set(list.map(String));
+          resolve(vipWhitelist);
+        });
+      } else {
+        vipWhitelist = new Set();
+        resolve(vipWhitelist);
+      }
+    });
+  }
+
+  async function toggleVipUser(user) {
+    const uid = String(user.pk || user.id || user.pk_id);
+    if (vipWhitelist.has(uid)) {
+      vipWhitelist.delete(uid);
+    } else {
+      vipWhitelist.add(uid);
+    }
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+      await new Promise(r => chrome.storage.local.set({ ig_vip_whitelist: Array.from(vipWhitelist) }, r));
+    }
+    updateTabBadges();
+    return vipWhitelist.has(uid);
+  }
+
+  // Compara o histórico da varredura anterior com a atual
+  async function computeRecentUnfollowers(currentFollowersMap) {
+    return new Promise((resolve) => {
+      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+        chrome.storage.local.get(['ig_followers_snapshot'], (res) => {
+          const prev = res.ig_followers_snapshot;
+          const lost = [];
+          if (prev && prev.users && Array.isArray(prev.users)) {
+            prev.users.forEach((u) => {
+              const uid = String(u.pk || u.id || u.pk_id);
+              if (!currentFollowersMap.has(uid)) {
+                lost.push({
+                  ...u,
+                  lostAt: Date.now()
+                });
+              }
+            });
+          }
+
+          // Atualiza snapshot histórico com a data atual
+          const newSnapshot = {
+            timestamp: Date.now(),
+            users: Array.from(currentFollowersMap.values()).map(u => ({
+              pk: u.pk || u.id,
+              username: u.username,
+              full_name: u.full_name,
+              profile_pic_url: u.profile_pic_url,
+              is_verified: !!u.is_verified
+            }))
+          };
+          chrome.storage.local.set({ ig_followers_snapshot: newSnapshot }, () => {
+            resolve(lost);
+          });
+        });
+      } else {
+        resolve([]);
+      }
+    });
+  }
+
+  // -------------------------------------------------------------
+  // INTERFACE PRINCIPAL E BOTÃO FLUTUANTE
+  // -------------------------------------------------------------
   function injectFloatingButton() {
     if (document.querySelector('.ig-unfollowers-floating-btn')) return;
 
@@ -73,10 +190,13 @@
     document.body.appendChild(btn);
   }
 
-  function openModal() {
+  async function openModal() {
+    await loadProStatus();
+    await loadVipWhitelist();
     if (!overlay) {
       createModal();
     }
+    updateProUiState();
     overlay.style.display = 'flex';
   }
 
@@ -86,7 +206,29 @@
     }
   }
 
-  // Cria o modal visual
+  function updateProUiState() {
+    if (!overlay) return;
+    const badgeContainer = overlay.querySelector('#igProBadgeContainer');
+    const triggerBtn = overlay.querySelector('#igProTriggerBtn');
+
+    if (badgeContainer) {
+      if (isPro) {
+        badgeContainer.innerHTML = `<span class="ig-unf-pro-gold-badge">${SVGS.crown} PRO</span>`;
+      } else {
+        badgeContainer.innerHTML = `<span class="ig-unf-free-badge">FREE</span>`;
+      }
+    }
+
+    if (triggerBtn) {
+      if (isPro) {
+        triggerBtn.style.display = 'none';
+      } else {
+        triggerBtn.style.display = 'flex';
+      }
+    }
+  }
+
+  // Cria o modal visual principal
   function createModal() {
     overlay = document.createElement('div');
     overlay.className = 'ig-unf-overlay';
@@ -97,8 +239,15 @@
           <div class="ig-unf-title-group">
             <div class="ig-unf-logo-badge">${SVGS.users}</div>
             <div class="ig-unf-title" id="igModalTitle">Detector de Não Seguidores</div>
+            <div id="igProBadgeContainer"></div>
           </div>
-          <button class="ig-unf-close-btn" id="igUnfClose" aria-label="Fechar painel">${SVGS.close}</button>
+          <div class="ig-unf-header-actions">
+            <button class="ig-unf-pro-btn" id="igProTriggerBtn">
+              ${SVGS.crown}
+              <span>Seja PRO</span>
+            </button>
+            <button class="ig-unf-close-btn" id="igUnfClose" aria-label="Fechar painel">${SVGS.close}</button>
+          </div>
         </div>
 
         <div class="ig-unf-body" id="igUnfBody"></div>
@@ -108,13 +257,112 @@
     document.body.appendChild(overlay);
 
     overlay.querySelector('#igUnfClose').addEventListener('click', closeModal);
+    overlay.querySelector('#igProTriggerBtn').addEventListener('click', openProModal);
+
     overlay.addEventListener('click', (e) => {
-      if (e.target === overlay && !isScanning) {
+      if (e.target === overlay && !isScanning && !isBatchRunning) {
         closeModal();
       }
     });
 
     renderInitialView();
+  }
+
+  // Modal com benefícios e ativação do PRO
+  function openProModal() {
+    const existing = document.getElementById('igProModal');
+    if (existing) existing.remove();
+
+    const proModal = document.createElement('div');
+    proModal.className = 'ig-unf-pro-overlay';
+    proModal.id = 'igProModal';
+
+    proModal.innerHTML = `
+      <div class="ig-unf-pro-dialog" role="dialog" aria-modal="true">
+        <div class="ig-unf-pro-dialog-header">
+          <div class="ig-unf-pro-hero-badge">${SVGS.crown}</div>
+          <div class="ig-unf-pro-dialog-title">Desbloqueie Todo o Poder com o PRO</div>
+          <div class="ig-unf-pro-dialog-subtitle">
+            A identificação de quem não te segue é 100% gratuita. O PRO adiciona automação, histórico e proteção contra unfollow em amigos.
+          </div>
+          <button class="ig-unf-close-btn ig-unf-pro-close" id="igProCloseBtn" aria-label="Fechar">${SVGS.close}</button>
+        </div>
+
+        <div class="ig-unf-pro-features-grid">
+          <div class="ig-unf-pro-feature-item">
+            <div class="ig-unf-pro-feat-icon alert">${SVGS.alert}</div>
+            <div class="ig-unf-pro-feat-content">
+              <strong>Histórico de Unfollows Recentes</strong>
+              <span>Saiba exatamente quem deixou de te seguir desde ontem ou desde a última varredura.</span>
+            </div>
+          </div>
+          <div class="ig-unf-pro-feature-item">
+            <div class="ig-unf-pro-feat-icon star">${SVGS.star}</div>
+            <div class="ig-unf-pro-feat-content">
+              <strong>Lista VIP Blindada</strong>
+              <span>Proteja amigos, familiares e parceiros contra cliques acidentais de unfollow.</span>
+            </div>
+          </div>
+          <div class="ig-unf-pro-feature-item">
+            <div class="ig-unf-pro-feat-icon batch">${SVGS.trash}</div>
+            <div class="ig-unf-pro-feat-content">
+              <strong>Deseguir em Massa Inteligente</strong>
+              <span>Selecione 10, 25 ou 50 perfis com fila de pausas humanas aleatórias anti-bloqueio.</span>
+            </div>
+          </div>
+          <div class="ig-unf-pro-feature-item">
+            <div class="ig-unf-pro-feat-icon chart">${SVGS.download}</div>
+            <div class="ig-unf-pro-feat-content">
+              <strong>Exportação Detalhada</strong>
+              <span>Exporte relatórios prontos em CSV com data, status de amigos e links diretos.</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="ig-unf-pro-activation-box">
+          <div class="ig-unf-pro-act-label">Ativação de Licença PRO</div>
+          <div class="ig-unf-pro-input-group">
+            <input type="text" class="ig-unf-pro-input" id="igProKeyInput" placeholder="Insira sua chave (ex: PRO-VIP-2026)" value="${isPro ? 'PRO-VIP-2026' : ''}" ${isPro ? 'disabled' : ''}>
+            <button class="ig-unf-pro-submit-btn" id="igProActivateBtn">${isPro ? 'Ativo ✓' : 'Ativar Agora'}</button>
+          </div>
+          <div class="ig-unf-pro-act-hint">
+            💡 Chave de demonstração e testes: <code>PRO-VIP-2026</code>
+          </div>
+          <div id="igProStatusFeedback" class="ig-unf-pro-feedback"></div>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(proModal);
+
+    proModal.querySelector('#igProCloseBtn').addEventListener('click', () => proModal.remove());
+    proModal.addEventListener('click', (e) => {
+      if (e.target === proModal) proModal.remove();
+    });
+
+    const activateBtn = proModal.querySelector('#igProActivateBtn');
+    const keyInput = proModal.querySelector('#igProKeyInput');
+    const feedback = proModal.querySelector('#igProStatusFeedback');
+
+    activateBtn.addEventListener('click', async () => {
+      if (isPro) {
+        feedback.textContent = 'Você já possui o plano PRO ativo!';
+        feedback.style.color = '#34d399';
+        return;
+      }
+      const res = await activateLicense(keyInput.value);
+      if (res.success) {
+        feedback.textContent = res.message;
+        feedback.style.color = '#34d399';
+        activateBtn.textContent = 'Ativo ✓';
+        activateBtn.disabled = true;
+        keyInput.disabled = true;
+        renderResultsView();
+      } else {
+        feedback.textContent = res.message;
+        feedback.style.color = '#f87171';
+      }
+    });
   }
 
   // Tela Inicial
@@ -140,7 +388,7 @@
         <div class="ig-unf-hero-icon">${SVGS.chart}</div>
         <div class="ig-unf-start-title">Descubra quem não te segue de volta</div>
         <p class="ig-unf-start-desc">
-          <strong>Liberação suave em tempo real:</strong> os perfis entram gradualmente na tela sem travamentos, com botões para deixar de seguir ou retribuir com 1 clique.
+          <strong>Identificação gratuita e sem limites:</strong> varredura rápida e suave que lista quem não te segue, com botões diretos de ação e proteção anti-bloqueio.
         </p>
         <button class="ig-unf-primary-btn" id="igStartScanBtn">
           <span>${SVGS.play}</span>
@@ -152,18 +400,22 @@
     body.querySelector('#igStartScanBtn').addEventListener('click', startScan);
   }
 
-  // Atualiza os contadores das abas
+  // Atualiza os contadores numéricos das abas
   function updateTabBadges() {
     const notBadge = overlay?.querySelector('[data-tab="notFollowingBack"] .ig-unf-tab-badge');
     const fansBadge = overlay?.querySelector('[data-tab="fans"] .ig-unf-tab-badge');
     const mutualBadge = overlay?.querySelector('[data-tab="mutual"] .ig-unf-tab-badge');
+    const recentBadge = overlay?.querySelector('[data-tab="recentUnfollowers"] .ig-unf-tab-badge');
+    const vipBadge = overlay?.querySelector('[data-tab="vip"] .ig-unf-tab-badge');
 
     if (notBadge) notBadge.textContent = scanResults.notFollowingBack.length;
     if (fansBadge) fansBadge.textContent = scanResults.fans.length;
     if (mutualBadge) mutualBadge.textContent = scanResults.mutual.length;
+    if (recentBadge) recentBadge.textContent = scanResults.recentUnfollowers.length;
+    if (vipBadge) vipBadge.textContent = vipWhitelist.size;
   }
 
-  // Ação de Deixar de Seguir direto pelo card
+  // Ação Individual de Deixar de Seguir
   async function handleUnfollow(targetUserId, btn) {
     btn.disabled = true;
     btn.textContent = 'Deixando...';
@@ -213,7 +465,7 @@
     }
   }
 
-  // Ação de Seguir de Volta (Fãs) direto pelo card
+  // Ação Individual de Seguir de Volta
   async function handleFollow(targetUserId, btn) {
     btn.disabled = true;
     btn.textContent = 'Seguindo...';
@@ -259,7 +511,9 @@
     }
   }
 
-  // Scanner Progressivo
+  // -------------------------------------------------------------
+  // SCANNER COM FEEDBACK AO VIVO E BOTÃO DE LIBERAÇÃO AOS 100
+  // -------------------------------------------------------------
   async function startScan() {
     const userId = getLoggedInUserId();
     if (!userId) return;
@@ -267,7 +521,15 @@
     isScanning = true;
     shouldStopScan = false;
     isPhase1 = true;
-    scanResults = { notFollowingBack: [], fans: [], mutual: [] };
+    isEarlyReleased = false;
+    selectedUids.clear();
+
+    scanResults = {
+      notFollowingBack: [],
+      fans: [],
+      mutual: [],
+      recentUnfollowers: []
+    };
     currentTab = 'notFollowingBack';
     searchTerm = '';
 
@@ -286,13 +548,10 @@
     }
 
     try {
-      // -------------------------------------------------------------
-      // FASE 1: Mapeia seguidores (em lotes rápidos com feedback ao vivo)
-      // -------------------------------------------------------------
+      // FASE 1: Mapeamento de seguidores
       const followersMap = new Map();
       let cursor = null;
       let hasMore = true;
-      let isEarlyReleased = false;
 
       ensurePhase1Container();
 
@@ -342,9 +601,7 @@
         return;
       }
 
-      // -------------------------------------------------------------
-      // FASE 2: Streaming e liberação suave dos cards!
-      // -------------------------------------------------------------
+      // FASE 2: Streaming dos que você segue
       isPhase1 = false;
       let followingCursor = null;
       let hasMoreFollowing = true;
@@ -353,14 +610,13 @@
       const listElem = overlay.querySelector('#igUserList');
       if (listElem) listElem.innerHTML = '';
 
-      // Se liberado antecipadamente, avisa com destaque no topo
       if (isEarlyReleased) {
         let earlyBanner = overlay.querySelector('#igEarlyWarningBanner');
         if (!earlyBanner) {
           earlyBanner = document.createElement('div');
           earlyBanner.id = 'igEarlyWarningBanner';
           earlyBanner.className = 'ig-unf-warning-banner';
-          earlyBanner.innerHTML = `⚠️ <strong>Modo Antecipado:</strong> Você liberou a lista com ${followersMap.size} seguidores mapeados. Amigos fora dessa amostra podem aparecer como não-seguidores. Sempre verifique o perfil antes de dar unfollow.`;
+          earlyBanner.innerHTML = `⚠️ <strong>Modo Antecipado:</strong> Você liberou a lista com ${followersMap.size} seguidores mapeados. Amigos fora dessa amostra podem aparecer temporariamente como não-seguidores. Sempre verifique o perfil antes de dar unfollow.`;
           const toolbar = overlay.querySelector('.ig-unf-toolbar');
           if (toolbar && toolbar.parentNode) {
             toolbar.parentNode.insertBefore(earlyBanner, toolbar.nextSibling);
@@ -411,10 +667,11 @@
         }
       }
 
-      // -------------------------------------------------------------
-      // FASE 3: Finalização
-      // -------------------------------------------------------------
+      // FASE 3: Finalização e Comparação de Histórico de Unfollows
       scanResults.fans = Array.from(followersMap.values());
+      const lost = await computeRecentUnfollowers(followersMap);
+      scanResults.recentUnfollowers = lost;
+
       updateTabBadges();
       isScanning = false;
 
@@ -440,7 +697,9 @@
     }
   }
 
-  // Renderiza a casca da tela de resultados
+  // -------------------------------------------------------------
+  // RENDERIZAÇÃO DA CASCA DE RESULTADOS E ABAS
+  // -------------------------------------------------------------
   function renderResultsView(isStreaming = false) {
     const body = overlay.querySelector('#igUnfBody');
 
@@ -457,17 +716,27 @@
       </div>
 
       <div class="ig-unf-tabs" role="tablist">
-        <button class="ig-unf-tab-btn ${currentTab === 'notFollowingBack' ? 'active' : ''}" data-tab="notFollowingBack" role="tab" aria-selected="${currentTab === 'notFollowingBack'}">
+        <button class="ig-unf-tab-btn ${currentTab === 'notFollowingBack' ? 'active' : ''}" data-tab="notFollowingBack" role="tab">
           Não me seguem
           <span class="ig-unf-tab-badge">${scanResults.notFollowingBack.length}</span>
         </button>
-        <button class="ig-unf-tab-btn ${currentTab === 'fans' ? 'active' : ''}" data-tab="fans" role="tab" aria-selected="${currentTab === 'fans'}">
+        <button class="ig-unf-tab-btn ${currentTab === 'fans' ? 'active' : ''}" data-tab="fans" role="tab">
           Fãs
           <span class="ig-unf-tab-badge">${scanResults.fans.length}</span>
         </button>
-        <button class="ig-unf-tab-btn ${currentTab === 'mutual' ? 'active' : ''}" data-tab="mutual" role="tab" aria-selected="${currentTab === 'mutual'}">
+        <button class="ig-unf-tab-btn ${currentTab === 'mutual' ? 'active' : ''}" data-tab="mutual" role="tab">
           Mútuos
           <span class="ig-unf-tab-badge">${scanResults.mutual.length}</span>
+        </button>
+        <button class="ig-unf-tab-btn alert-tab ${currentTab === 'recentUnfollowers' ? 'active' : ''}" data-tab="recentUnfollowers" role="tab">
+          ${SVGS.alert}
+          Deixaram de Seguir
+          <span class="ig-unf-tab-badge alert-badge">${scanResults.recentUnfollowers.length}</span>
+        </button>
+        <button class="ig-unf-tab-btn vip-tab ${currentTab === 'vip' ? 'active' : ''}" data-tab="vip" role="tab">
+          ${SVGS.star}
+          VIPs
+          <span class="ig-unf-tab-badge vip-badge">${vipWhitelist.size}</span>
         </button>
       </div>
 
@@ -486,6 +755,22 @@
         </button>
       </div>
 
+      <div class="ig-unf-batch-bar" id="igBatchBar" style="${currentTab === 'notFollowingBack' ? 'display: flex;' : 'display: none;'}">
+        <div class="ig-unf-batch-select-group">
+          <span class="ig-unf-batch-label">Seleção:</span>
+          <button class="ig-unf-batch-chip" data-batch="10">+10</button>
+          <button class="ig-unf-batch-chip" data-batch="25">+25</button>
+          <button class="ig-unf-batch-chip" data-batch="all">Todos</button>
+          <button class="ig-unf-batch-chip text" data-batch="clear">Limpar</button>
+        </div>
+        <button class="ig-unf-batch-run-btn" id="igBatchRunBtn" disabled>
+          <span>${SVGS.trash}</span>
+          <span id="igBatchRunText">Deseguir Selecionados (0)</span>
+        </button>
+      </div>
+
+      <div id="igBatchQueueBanner" class="ig-unf-batch-queue-banner" style="display: none;"></div>
+
       <div class="ig-unf-user-list" id="igUserList"></div>
     `;
 
@@ -493,12 +778,13 @@
     body.querySelectorAll('.ig-unf-tab-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         currentTab = btn.getAttribute('data-tab');
-        body.querySelectorAll('.ig-unf-tab-btn').forEach(b => {
-          b.classList.remove('active');
-          b.setAttribute('aria-selected', 'false');
-        });
+        body.querySelectorAll('.ig-unf-tab-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        btn.setAttribute('aria-selected', 'true');
+
+        const batchBar = body.querySelector('#igBatchBar');
+        if (batchBar) {
+          batchBar.style.display = currentTab === 'notFollowingBack' ? 'flex' : 'none';
+        }
         renderUserListFull();
       });
     });
@@ -514,33 +800,224 @@
     body.querySelector('#igExportTxt').addEventListener('click', () => exportData('txt'));
     body.querySelector('#igExportCsv').addEventListener('click', () => exportData('csv'));
 
+    // Configuração dos botões de lote
+    setupBatchControls();
+
     renderUserListFull();
   }
 
-  // Cria o elemento HTML de um único card de usuário
+  // -------------------------------------------------------------
+  // CONTROLES DE DESEGUIR EM MASSA (BATCH UNFOLLOW)
+  // -------------------------------------------------------------
+  function setupBatchControls() {
+    const bar = overlay.querySelector('#igBatchBar');
+    if (!bar) return;
+
+    bar.querySelectorAll('.ig-unf-batch-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const type = chip.getAttribute('data-batch');
+        const list = scanResults.notFollowingBack.filter(u => {
+          const uid = String(u.pk || u.id || u.pk_id);
+          return !vipWhitelist.has(uid);
+        });
+
+        if (type === 'clear') {
+          selectedUids.clear();
+        } else if (type === 'all') {
+          list.forEach(u => selectedUids.add(String(u.pk || u.id || u.pk_id)));
+        } else {
+          const count = parseInt(type, 10);
+          list.slice(0, count).forEach(u => selectedUids.add(String(u.pk || u.id || u.pk_id)));
+        }
+        updateBatchButtonState();
+        syncCardCheckboxes();
+      });
+    });
+
+    const runBtn = bar.querySelector('#igBatchRunBtn');
+    runBtn.addEventListener('click', startBatchExecution);
+  }
+
+  function updateBatchButtonState() {
+    const runBtn = overlay?.querySelector('#igBatchRunBtn');
+    const text = overlay?.querySelector('#igBatchRunText');
+    if (!runBtn || !text) return;
+
+    const count = selectedUids.size;
+    text.textContent = `Deseguir Selecionados (${count})`;
+    runBtn.disabled = count === 0 || isBatchRunning;
+  }
+
+  function syncCardCheckboxes() {
+    const listElem = overlay?.querySelector('#igUserList');
+    if (!listElem) return;
+
+    listElem.querySelectorAll('.ig-unf-card-checkbox').forEach(cb => {
+      const uid = cb.getAttribute('data-uid');
+      cb.checked = selectedUids.has(uid);
+    });
+  }
+
+  // Executa a fila de deseguir em massa com atraso humanizado
+  async function startBatchExecution() {
+    if (selectedUids.size === 0) return;
+
+    // Usuário gratuito: aviso caso tente mais de 3 em lote
+    if (!isPro && selectedUids.size > 3) {
+      openProModal();
+      return;
+    }
+
+    const queueBanner = overlay.querySelector('#igBatchQueueBanner');
+    const targetUids = Array.from(selectedUids);
+    isBatchRunning = true;
+    shouldStopBatch = false;
+    updateBatchButtonState();
+
+    if (queueBanner) {
+      queueBanner.style.display = 'flex';
+    }
+
+    let processed = 0;
+    for (const uid of targetUids) {
+      if (shouldStopBatch) break;
+
+      const userObj = scanResults.notFollowingBack.find(u => String(u.pk || u.id || u.pk_id) === uid);
+      const username = userObj ? userObj.username : uid;
+
+      if (queueBanner) {
+        queueBanner.innerHTML = `
+          <div class="ig-unf-queue-info">
+            <div class="ig-unf-spinner-sm"></div>
+            <span>Deseguindo <strong>@${username}</strong> (${processed + 1} de ${targetUids.length})...</span>
+          </div>
+          <button class="ig-unf-stop-btn" id="igStopBatchBtn">
+            <span>${SVGS.stop}</span>
+            <span>Cancelar</span>
+          </button>
+        `;
+        queueBanner.querySelector('#igStopBatchBtn').addEventListener('click', () => {
+          shouldStopBatch = true;
+        });
+      }
+
+      // Executa o unfollow
+      const card = overlay.querySelector(`[data-uid="${uid}"]`);
+      const btn = card?.querySelector('[data-action="unfollow"]');
+      if (btn) btn.textContent = 'Deseguindo...';
+
+      const csrf = getCsrfToken();
+      const headers = {
+        'X-CSRFToken': csrf,
+        'X-IG-App-ID': '936619743392459',
+        'X-Requested-With': 'XMLHttpRequest',
+        'Content-Type': 'application/x-www-form-urlencoded'
+      };
+
+      try {
+        let res = await fetch(`/api/v1/web/friendships/${uid}/unfollow/`, {
+          method: 'POST',
+          headers: headers,
+          credentials: 'include'
+        });
+        if (res.status === 404) {
+          res = await fetch(`/web/friendships/${uid}/unfollow/`, { method: 'POST', headers, credentials: 'include' });
+        }
+
+        if (res.ok && btn) {
+          btn.innerHTML = `${SVGS.check} <span>Deixou</span>`;
+          btn.disabled = true;
+          selectedUids.delete(uid);
+        }
+      } catch (e) {
+        console.error('Erro no lote:', e);
+      }
+
+      processed++;
+
+      // Pausa humanizada anti-ban aleatória entre 8 e 13 segundos (ou 3s no teste rápido se for 1)
+      if (processed < targetUids.length && !shouldStopBatch) {
+        const delaySeconds = 8 + Math.floor(Math.random() * 5);
+        for (let s = delaySeconds; s > 0; s--) {
+          if (shouldStopBatch) break;
+          if (queueBanner) {
+            queueBanner.innerHTML = `
+              <div class="ig-unf-queue-info">
+                <span>🛡️ Segurança Anti-Bloqueio: Próximo perfil em <strong>${s}s</strong> (${processed} concluídos)...</span>
+              </div>
+              <button class="ig-unf-stop-btn" id="igStopBatchBtn">
+                <span>${SVGS.stop}</span>
+                <span>Cancelar</span>
+              </button>
+            `;
+            queueBanner.querySelector('#igStopBatchBtn').addEventListener('click', () => {
+              shouldStopBatch = true;
+            });
+          }
+          await sleep(1000);
+        }
+      }
+    }
+
+    isBatchRunning = false;
+    updateBatchButtonState();
+    if (queueBanner) {
+      queueBanner.innerHTML = `
+        <div class="ig-unf-queue-info">
+          <span>${SVGS.check}</span>
+          <span>Fila concluída: ${processed} perfis processados com sucesso.</span>
+        </div>
+      `;
+      setTimeout(() => {
+        queueBanner.style.display = 'none';
+      }, 4000);
+    }
+  }
+
+  // -------------------------------------------------------------
+  // CRIAÇÃO DO CARD DE USUÁRIO COM VIP E SELEÇÃO
+  // -------------------------------------------------------------
   function createUserCardElement(user, category) {
     const card = document.createElement('div');
     card.className = 'ig-unf-user-card';
-    card.setAttribute('data-uid', String(user.pk || user.id || user.pk_id));
+    const uid = String(user.pk || user.id || user.pk_id);
+    card.setAttribute('data-uid', uid);
 
+    const isVip = vipWhitelist.has(uid);
     let actionBtnHtml = '';
-    if (category === 'notFollowingBack') {
+
+    if (isVip) {
+      actionBtnHtml = `<span class="ig-unf-vip-protected-badge">${SVGS.shield} <span>VIP Protegido</span></span>`;
+    } else if (category === 'notFollowingBack') {
       actionBtnHtml = `<button class="ig-unf-unfollow-btn" data-action="unfollow">Deixar de Seguir</button>`;
     } else if (category === 'fans') {
       actionBtnHtml = `<button class="ig-unf-follow-btn" data-action="follow">Seguir de Volta</button>`;
+    } else if (category === 'recentUnfollowers') {
+      actionBtnHtml = `
+        <span class="ig-unf-lost-badge">${SVGS.alert} Deixou de Seguir</span>
+        <button class="ig-unf-unfollow-btn" data-action="unfollow">Deixar de Seguir</button>
+      `;
     } else {
       actionBtnHtml = `<span class="ig-unf-mutual-badge">Mútuo ✓</span>`;
     }
 
+    const showCheckbox = category === 'notFollowingBack' && !isVip;
+
     card.innerHTML = `
-      <div class="ig-unf-user-info">
-        <img class="ig-unf-avatar" src="${user.profile_pic_url || ''}" alt="${user.username}" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png';">
-        <div class="ig-unf-names">
-          <span class="ig-unf-username">
-            @${user.username}
-            ${user.is_verified ? `<span title="Verificado">${SVGS.verified}</span>` : ''}
-          </span>
-          <span class="ig-unf-fullname">${user.full_name || ''}</span>
+      <div class="ig-unf-card-left">
+        ${showCheckbox ? `<input type="checkbox" class="ig-unf-card-checkbox" data-uid="${uid}" ${selectedUids.has(uid) ? 'checked' : ''} aria-label="Selecionar para deseguir">` : ''}
+        <button class="ig-unf-star-btn ${isVip ? 'active' : ''}" data-uid="${uid}" title="${isVip ? 'Remover dos VIPs' : 'Adicionar à Lista VIP protegida'}">
+          ${isVip ? SVGS.star : SVGS.starOutline}
+        </button>
+        <div class="ig-unf-user-info">
+          <img class="ig-unf-avatar" src="${user.profile_pic_url || ''}" alt="${user.username}" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png';">
+          <div class="ig-unf-names">
+            <span class="ig-unf-username">
+              @${user.username}
+              ${user.is_verified ? `<span title="Verificado">${SVGS.verified}</span>` : ''}
+            </span>
+            <span class="ig-unf-fullname">${user.full_name || ''}</span>
+          </div>
         </div>
       </div>
       <div class="ig-unf-actions-group">
@@ -552,20 +1029,45 @@
       </div>
     `;
 
+    // Evento de Checkbox
+    const cb = card.querySelector('.ig-unf-card-checkbox');
+    if (cb) {
+      cb.addEventListener('change', (e) => {
+        if (e.target.checked) {
+          selectedUids.add(uid);
+        } else {
+          selectedUids.delete(uid);
+        }
+        updateBatchButtonState();
+      });
+    }
+
+    // Evento de Estrela VIP
+    const starBtn = card.querySelector('.ig-unf-star-btn');
+    if (starBtn) {
+      starBtn.addEventListener('click', async () => {
+        const nowVip = await toggleVipUser(user);
+        renderUserListFull();
+      });
+    }
+
+    // Eventos de Ação
     const unfollowBtn = card.querySelector('[data-action="unfollow"]');
     if (unfollowBtn) {
-      unfollowBtn.addEventListener('click', () => handleUnfollow(user.pk || user.id || user.pk_id, unfollowBtn));
+      unfollowBtn.addEventListener('click', () => handleUnfollow(uid, unfollowBtn));
     }
 
     const followBtn = card.querySelector('[data-action="follow"]');
     if (followBtn) {
-      followBtn.addEventListener('click', () => handleFollow(user.pk || user.id || user.pk_id, followBtn));
+      followBtn.addEventListener('click', () => handleFollow(uid, followBtn));
     }
 
     return card;
   }
 
-  // Garante a casca visual da Fase 1 (Indexação com feedback dinâmico contínuo)
+  // -------------------------------------------------------------
+  // FEEDBACK DE CARREGAMENTO DINÂMICO DA FASE 1
+  // -------------------------------------------------------------
   function ensurePhase1Container() {
     const listElem = overlay?.querySelector('#igUserList');
     if (!listElem) return;
@@ -605,7 +1107,6 @@
     }
   }
 
-  // Atualiza os dados visuais durante a Fase 1
   function updatePhase1Progress(count, recentBatch, onEarlyReleaseClick) {
     ensurePhase1Container();
 
@@ -657,9 +1158,7 @@
     }
 
     const currentList = scanResults[currentTab] || [];
-    if (currentList.length === 0) {
-      return;
-    }
+    if (currentList.length === 0) return;
 
     const emptyMsg = listElem.querySelector('.ig-unf-empty-msg, .ig-unf-scanning-state, #igPhase1Container');
     if (emptyMsg) {
@@ -694,7 +1193,42 @@
       return;
     }
 
-    const list = scanResults[currentTab] || [];
+    // Caso de Aba Recent Unfollowers no plano FREE (Teaser)
+    if (currentTab === 'recentUnfollowers' && !isPro) {
+      listElem.innerHTML = `
+        <div class="ig-unf-pro-teaser-card">
+          <div class="ig-unf-pro-teaser-icon">${SVGS.alert}</div>
+          <div class="ig-unf-pro-teaser-title">${scanResults.recentUnfollowers.length} pessoas deixaram de te seguir</div>
+          <div class="ig-unf-pro-teaser-desc">
+            Identificamos quem deu unfollow na sua conta desde a última checagem. No plano PRO, você desbloqueia a lista com @, fotos e acesso direto.
+          </div>
+          <button class="ig-unf-pro-unlock-btn" id="igUnlockRecentBtn">
+            ${SVGS.crown}
+            <span>Desbloquear Histórico com PRO</span>
+          </button>
+        </div>
+      `;
+      listElem.querySelector('#igUnlockRecentBtn').addEventListener('click', openProModal);
+      return;
+    }
+
+    // Filtra lista de acordo com a aba
+    let list = [];
+    if (currentTab === 'vip') {
+      const allKnown = [...scanResults.notFollowingBack, ...scanResults.mutual, ...scanResults.fans];
+      const seen = new Set();
+      list = allKnown.filter(u => {
+        const uid = String(u.pk || u.id || u.pk_id);
+        if (vipWhitelist.has(uid) && !seen.has(uid)) {
+          seen.add(uid);
+          return true;
+        }
+        return false;
+      });
+    } else {
+      list = scanResults[currentTab] || [];
+    }
+
     const filtered = list.filter(u => {
       if (!searchTerm) return true;
       const uname = (u.username || '').toLowerCase();
@@ -707,7 +1241,7 @@
     if (filtered.length === 0) {
       listElem.innerHTML = `
         <div class="ig-unf-empty-msg">
-          ${isScanning ? 'Analisando em tempo real... os primeiros perfis já vão surgir aqui.' : (searchTerm ? 'Nenhum usuário encontrado na pesquisa.' : 'Nenhum usuário nesta categoria.')}
+          ${isScanning ? 'Analisando em tempo real... os primeiros perfis já vão surgir aqui.' : (searchTerm ? 'Nenhum usuário encontrado na pesquisa.' : (currentTab === 'vip' ? 'Nenhum usuário favoritado na Lista VIP ainda. Clique na estrela ⭐ de qualquer perfil para blindá-lo.' : 'Nenhum usuário nesta categoria.'))}
         </div>
       `;
       return;
@@ -721,7 +1255,7 @@
     listElem.appendChild(fragment);
   }
 
-  // Exportar dados
+  // Exportação de Dados
   function exportData(format) {
     const list = scanResults[currentTab] || [];
     if (list.length === 0) {
@@ -735,9 +1269,17 @@
 
     if (format === 'csv') {
       mimeType = 'text/csv;charset=utf-8;';
-      content = 'Username,Full Name,Profile URL\n' + list.map(u => `"${u.username}","${(u.full_name || '').replace(/"/g, '""')}","https://www.instagram.com/${u.username}/"`).join('\n');
+      content = 'Username,Full Name,Profile URL,Is VIP\n' + list.map(u => {
+        const uid = String(u.pk || u.id || u.pk_id);
+        const vipStatus = vipWhitelist.has(uid) ? 'SIM' : 'NAO';
+        return `"${u.username}","${(u.full_name || '').replace(/"/g, '""')}","https://www.instagram.com/${u.username}/","${vipStatus}"`;
+      }).join('\n');
     } else {
-      content = list.map(u => `@${u.username} (${u.full_name || ''}) - https://www.instagram.com/${u.username}/`).join('\n');
+      content = list.map(u => {
+        const uid = String(u.pk || u.id || u.pk_id);
+        const vipText = vipWhitelist.has(uid) ? ' [VIP]' : '';
+        return `@${u.username} (${u.full_name || ''})${vipText} - https://www.instagram.com/${u.username}/`;
+      }).join('\n');
     }
 
     const blob = new Blob([content], { type: mimeType });
@@ -761,7 +1303,7 @@
     }
   });
 
-  // Injeção inicial na página
+  // Injeção do botão na página do Instagram
   setTimeout(injectFloatingButton, 1000);
   setInterval(injectFloatingButton, 3000);
 })();
