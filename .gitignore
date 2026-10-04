@@ -2,3 +2,5 @@
 Thumbs.db
 *.zip
 .vscode/
+dist/
+pro-keys.txt

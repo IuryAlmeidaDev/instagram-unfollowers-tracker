@@ -1162,17 +1162,47 @@
     });
   }
 
+  const PRO_CHECKOUT_URL = 'https://pay.kiwify.com.br/SEU_LINK'; // Substitua pelo link do seu produto Kiwify
+  const LICENSE_SALT = 'IG_PRO_2026_SECRET_KEY';
+  const LICENSE_CHARS = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+
+  function calculateKeyChecksum(str) {
+    let hash = 5381;
+    const combined = str + LICENSE_SALT;
+    for (let i = 0; i < combined.length; i++) {
+      hash = ((hash << 5) + hash) + combined.charCodeAt(i);
+      hash = hash & 0xFFFFFFFF;
+    }
+    let result = '';
+    let num = Math.abs(hash);
+    for (let i = 0; i < 5; i++) {
+      result += LICENSE_CHARS[num % LICENSE_CHARS.length];
+      num = Math.floor(num / LICENSE_CHARS.length) + (i * 7);
+    }
+    return result;
+  }
+
+  function isValidLicenseKey(key) {
+    if (!key) return false;
+    const clean = key.trim().toUpperCase();
+    if (clean === 'PRO-VIP-2026') return true;
+    const parts = clean.split('-');
+    if (parts.length !== 4 || parts[0] !== 'IGPRO') return false;
+    if (parts[1].length !== 5 || parts[2].length !== 5 || parts[3].length !== 5) return false;
+    return calculateKeyChecksum(parts[1] + parts[2]) === parts[3];
+  }
+
   async function activateLicense(key) {
     const clean = (key || '').trim().toUpperCase();
-    if (clean === 'PRO-VIP-2026' || clean.startsWith('IGPRO-')) {
+    if (isValidLicenseKey(clean)) {
       isPro = true;
       if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
         await new Promise(r => chrome.storage.local.set({ ig_is_pro: true, ig_pro_license: clean }, r));
       }
       updateProUiState();
-      return { success: true, message: 'Plano PRO ativado com sucesso! Aproveite todos os recursos.' };
+      return { success: true, message: '🎉 Plano PRO Vitalício ativado com sucesso! Aproveite todos os recursos.' };
     }
-    return { success: false, message: 'Chave inválida. Use a chave de teste PRO-VIP-2026.' };
+    return { success: false, message: 'Chave inválida. Verifique o código recebido no seu e-mail da compra ou use a chave de teste PRO-VIP-2026.' };
   }
 
   async function loadVipWhitelist() {
@@ -1500,7 +1530,7 @@
 
         <div class="ig-unf-pro-activation-box">
           ${isPro ? `
-            <div class="ig-unf-pro-act-label">Plano PRO Ativo ✓</div>
+            <div class="ig-unf-pro-act-label">Plano PRO Vitalício Ativo ✓</div>
             <div class="ig-unf-pro-settings-group">
               <label class="ig-unf-pro-toggle-label">
                 <span>🔔 Alertas de Unfollow na Área de Trabalho</span>
@@ -1518,10 +1548,32 @@
               </div>
             </div>
           ` : `
-            <div class="ig-unf-pro-act-label">Ativação de Licença PRO</div>
+            <!-- Card de Oferta R$ 9,99 Vitalício no PIX -->
+            <div class="ig-unf-pro-offer-card">
+              <div class="ig-unf-pro-offer-badge">⚡ OFERTA DE LANÇAMENTO • ACESSO VITALÍCIO</div>
+              <div class="ig-unf-pro-offer-price-row">
+                <span class="ig-unf-pro-old-price">De R$ 29,90</span>
+                <span class="ig-unf-pro-new-price">R$ 9,99</span>
+                <span class="ig-unf-pro-pix-tag">no PIX</span>
+              </div>
+              <p class="ig-unf-pro-offer-desc">Pagamento único sem mensalidades. Liberação imediata da sua chave.</p>
+              <a href="${PRO_CHECKOUT_URL}" target="_blank" rel="noopener noreferrer" class="ig-unf-pro-checkout-btn" id="igProBuyBtn">
+                <span>⚡ Adquirir Chave PRO por R$ 9,99 (PIX)</span>
+              </a>
+              <div class="ig-unf-pro-trust-badges">
+                <span>✓ Chave entregue na hora</span>
+                <span>✓ Vitalício para sempre</span>
+                <span>✓ 100% Seguro</span>
+              </div>
+            </div>
+
+            <div class="ig-unf-pro-divider">
+              <span>Já comprou sua chave? Ative abaixo:</span>
+            </div>
+
             <div class="ig-unf-pro-input-group">
-              <input type="text" class="ig-unf-pro-input" id="igProKeyInput" placeholder="Insira sua chave (ex: PRO-VIP-2026)">
-              <button class="ig-unf-pro-submit-btn" id="igProActivateBtn">Ativar Agora</button>
+              <input type="text" class="ig-unf-pro-input" id="igProKeyInput" placeholder="Cole sua chave (ex: IGPRO-XXXX-XXXX-XXXX)">
+              <button class="ig-unf-pro-submit-btn" id="igProActivateBtn">Ativar Licença</button>
             </div>
             <div class="ig-unf-pro-act-hint">
               💡 Chave de demonstração e testes: <code>PRO-VIP-2026</code>

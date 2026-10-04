@@ -77,17 +77,46 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  const LICENSE_SALT = 'IG_PRO_2026_SECRET_KEY';
+  const LICENSE_CHARS = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+
+  function calculateKeyChecksum(str) {
+    let hash = 5381;
+    const combined = str + LICENSE_SALT;
+    for (let i = 0; i < combined.length; i++) {
+      hash = ((hash << 5) + hash) + combined.charCodeAt(i);
+      hash = hash & 0xFFFFFFFF;
+    }
+    let result = '';
+    let num = Math.abs(hash);
+    for (let i = 0; i < 5; i++) {
+      result += LICENSE_CHARS[num % LICENSE_CHARS.length];
+      num = Math.floor(num / LICENSE_CHARS.length) + (i * 7);
+    }
+    return result;
+  }
+
+  function isValidLicenseKey(key) {
+    if (!key) return false;
+    const clean = key.trim().toUpperCase();
+    if (clean === 'PRO-VIP-2026') return true;
+    const parts = clean.split('-');
+    if (parts.length !== 4 || parts[0] !== 'IGPRO') return false;
+    if (parts[1].length !== 5 || parts[2].length !== 5 || parts[3].length !== 5) return false;
+    return calculateKeyChecksum(parts[1] + parts[2]) === parts[3];
+  }
+
   if (activateBtn) {
     activateBtn.addEventListener('click', () => {
       const key = (keyInput.value || '').trim().toUpperCase();
-      if (key === 'PRO-VIP-2026' || key.startsWith('IGPRO-')) {
+      if (isValidLicenseKey(key)) {
         chrome.storage.local.set({ ig_is_pro: true, ig_pro_license: key }, () => {
-          proMsg.textContent = 'Ativado com sucesso!';
+          proMsg.textContent = '🎉 Ativado com sucesso!';
           proMsg.style.color = '#34d399';
           setTimeout(refreshProUi, 800);
         });
       } else {
-        proMsg.textContent = 'Chave inválida. Use PRO-VIP-2026';
+        proMsg.textContent = 'Chave inválida. Use a chave recebida no e-mail ou PRO-VIP-2026';
         proMsg.style.color = '#f87171';
       }
     });

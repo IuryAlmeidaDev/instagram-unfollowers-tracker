@@ -1732,6 +1732,121 @@
   min-height: 18px;
 }
 
+/* Oferta de Lançamento R$ 9,99 Vitalício no PIX */
+.ig-unf-pro-offer-card {
+  background: linear-gradient(180deg, rgba(245, 158, 11, 0.12) 0%, rgba(20, 20, 22, 0.95) 100%);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: 10px;
+  padding: 16px;
+  text-align: center;
+  margin-bottom: 14px;
+}
+
+.ig-unf-pro-offer-badge {
+  display: inline-block;
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  letter-spacing: 0.03em;
+  margin-bottom: 8px;
+}
+
+.ig-unf-pro-offer-price-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.ig-unf-pro-old-price {
+  font-size: 14px;
+  color: #71717a;
+  text-decoration: line-through;
+}
+
+.ig-unf-pro-new-price {
+  font-size: 28px;
+  font-weight: 900;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+}
+
+.ig-unf-pro-pix-tag {
+  background: #059669;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+
+.ig-unf-pro-offer-desc {
+  font-size: 12px;
+  color: #d4d4d8;
+  margin-bottom: 12px;
+}
+
+.ig-unf-pro-checkout-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border: 1px solid rgba(52, 211, 153, 0.4);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 800;
+  padding: 12px 18px;
+  min-height: 44px;
+  box-sizing: border-box;
+  border-radius: 8px;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.35);
+  transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ig-unf-pro-checkout-btn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+  box-shadow: 0 6px 18px rgba(5, 150, 105, 0.45);
+}
+
+.ig-unf-pro-trust-badges {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 10px;
+  font-size: 12px;
+  color: #a1a1aa;
+}
+
+.ig-unf-pro-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 12px 0 10px;
+  font-size: 12px;
+  color: #71717a;
+}
+
+.ig-unf-pro-divider::before,
+.ig-unf-pro-divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid #27272a;
+}
+
+.ig-unf-pro-divider span {
+  padding: 0 10px;
+}
+
 /* Botão Fantasma no Cabeçalho */
 .ig-unf-ghost-btn {
   background: rgba(255, 255, 255, 0.05);

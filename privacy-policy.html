@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Política de Privacidade - Quem Não Me Segue</title>
+  <style>
+    :root {
+      --bg: #09090b;
+      --card-bg: #141417;
+      --border: #27272a;
+      --text: #f4f4f5;
+      --text-muted: #a1a1aa;
+      --accent: #f59e0b;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      padding: 40px 20px;
+      display: flex;
+      justify-content: center;
+    }
+    .container {
+      max-width: 760px;
+      width: 100%;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 40px;
+    }
+    h1 {
+      font-size: 26px;
+      font-weight: 800;
+      margin-bottom: 8px;
+      color: #ffffff;
+    }
+    .updated {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 30px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    h2 {
+      font-size: 18px;
+      font-weight: 700;
+      margin: 24px 0 10px;
+      color: #fbbf24;
+    }
+    p, ul {
+      color: var(--text-muted);
+      font-size: 14px;
+      margin-bottom: 14px;
+    }
+    ul {
+      padding-left: 20px;
+    }
+    li {
+      margin-bottom: 8px;
+    }
+    .highlight-box {
+      background: rgba(245, 158, 11, 0.08);
+      border: 1px solid rgba(245, 158, 11, 0.25);
+      border-radius: 10px;
+      padding: 16px;
+      margin: 20px 0;
+    }
+    .highlight-box p {
+      color: #fef3c7;
+      margin: 0;
+      font-size: 14px;
+    }
+    footer {
+      margin-top: 36px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+      font-size: 12px;
+      color: #a1a1aa;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Política de Privacidade</h1>
+    <div class="updated">Extensão para Google Chrome: <strong>Quem Não Me Segue - Detector para Instagram™</strong><br>Última atualização: Outubro de 2026</div>
+
+    <div class="highlight-box">
+      <p><strong>Compromisso de Privacidade:</strong> Nossa extensão opera 100% de forma local no seu navegador. Nós <strong>NUNCA</strong> solicitamos, armazenamos ou transmitimos suas senhas, mensagens privadas ou dados pessoais.</p>
+    </div>
+
+    <h2>1. Informações que NÃO Coletamos</h2>
+    <p>A extensão foi projetada seguindo o princípio da minimização de dados e privacidade por padrão:</p>
+    <ul>
+      <li><strong>Nenhuma Senha ou Credencial:</strong> A extensão utiliza apenas a sessão ativa que já existe no seu navegador enquanto você navega no Instagram. Você nunca digita sua senha nela.</li>
+      <li><strong>Nenhum Dado em Servidores Externos:</strong> Não possuímos servidores de banco de dados onde seus seguidores, fotos ou atividades fiquem gravados.</li>
+      <li><strong>Nenhum Rastreamento de Terceiros:</strong> Não utilizamos Google Analytics, cookies de terceiros ou pixels de rastreamento para monitorar sua navegação.</li>
+    </ul>
+
+    <h2>2. Informações Processadas Localmente</h2>
+    <p>Para fornecer o serviço de identificação de quem não te segue e histórico de unfollows, a extensão processa as seguintes informações diretamente na memória do seu dispositivo:</p>
+    <ul>
+      <li><strong>Listas Públicas de Seguidores e Seguindo:</strong> Lidas através da sessão oficial do Instagram para calcular a diferença matemática entre quem você segue e quem te segue de volta.</li>
+      <li><strong>Armazenamento Local (Chrome Storage Local):</strong> Suas preferências de exibição, listas de perfis VIP protegidos e snapshots de varreduras anteriores são armazenados exclusivamente no disco rígido do seu computador via API oficial <code>chrome.storage.local</code>.</li>
+      <li><strong>Chave de Licença PRO:</strong> Caso você ative o plano PRO, a chave de licença é salva localmente no navegador para desbloquear recursos avançados.</li>
+    </ul>
+
+    <h2>3. Permissões Solicitadas e Justificativas</h2>
+    <ul>
+      <li><strong>storage:</strong> Necessária para salvar suas preferências, histórico de contagem e lista VIP no seu próprio computador.</li>
+      <li><strong>alarms:</strong> Necessária para agendar a verificação periódica em segundo plano de novos unfollows (recurso PRO).</li>
+      <li><strong>notifications:</strong> Necessária para enviar alertas nativos do Windows/Mac na sua área de trabalho quando uma alteração for detectada.</li>
+      <li><strong>https://www.instagram.com/*:</strong> Necessária para que a interface de análise e os botões possam ser injetados e executados quando você acessa a página do Instagram.</li>
+    </ul>
+
+    <h2>4. Segurança e Proteção Anti-Bloqueio</h2>
+    <p>A extensão respeita rigorosamente os limites e a integridade da sua conta:</p>
+    <ul>
+      <li>Todas as ações de unfollow possuem intervalos humanos aleatórios calculados automaticamente para evitar disparos de sistemas de detecção do Instagram.</li>
+      <li>O usuário possui total controle para pausar, cancelar ou desfazer qualquer ação a qualquer momento.</li>
+    </ul>
+
+    <h2>5. Contato e Suporte</h2>
+    <p>Para dúvidas, suporte técnico ou requisições sobre esta extensão, entre em contato através do e-mail de suporte informado na página oficial do produto na Chrome Web Store.</p>
+
+    <footer>
+      Quem Não Me Segue - Extensão Independente.<br>Instagram™ é uma marca registrada da Meta Platforms, Inc. Esta extensão não é afiliada ou endossada pela Meta.
+    </footer>
+  </div>
+</body>
+</html>
