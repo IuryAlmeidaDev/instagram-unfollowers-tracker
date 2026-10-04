@@ -1194,6 +1194,10 @@
     }
     updateProUiState();
     overlay.style.display = 'flex';
+    setTimeout(() => {
+      const initialFocus = overlay.querySelector('#igSearchInput') || overlay.querySelector('#igUnfClose');
+      if (initialFocus) initialFocus.focus();
+    }, 60);
   }
 
   function closeModal() {
@@ -1203,6 +1207,8 @@
         activeExportMenuCleanup();
         activeExportMenuCleanup = null;
       }
+      const floatingBtn = document.querySelector('.ig-unfollowers-floating-btn');
+      if (floatingBtn) floatingBtn.focus();
     }
   }
 
@@ -3323,9 +3329,26 @@
   }
 
   // -------------------------------------------------------------
-  // ATALHO GLOBAL DE TECLADO: ESC PARA FECHAMENTO DE MODAIS
+  // ATALHOS DE TECLADO: ESC (FECHAR) E TAB (FOCUS TRAP EM MODAIS)
   // -------------------------------------------------------------
   window.addEventListener('keydown', (e) => {
+    // Identifica o container de modal atualmente ativo no topo
+    function getActiveModalDialog() {
+      const confirmOverlay = document.querySelector('.ig-unf-confirm-overlay');
+      if (confirmOverlay) return confirmOverlay.querySelector('.ig-unf-confirm-dialog') || confirmOverlay;
+
+      const blockModal = document.getElementById('igBlockCheckerModal');
+      if (blockModal) return blockModal.querySelector('.ig-unf-block-dialog') || blockModal;
+
+      const proModal = document.getElementById('igProModal');
+      if (proModal) return proModal.querySelector('.ig-unf-pro-dialog') || proModal;
+
+      if (overlay && overlay.style.display !== 'none') {
+        return overlay.querySelector('.ig-unf-modal') || overlay;
+      }
+      return null;
+    }
+
     if (e.key === 'Escape' || e.key === 'Esc') {
       // 1. Modal de confirmação de deseguir em lote
       const confirmOverlay = document.querySelector('.ig-unf-confirm-overlay');
@@ -3369,6 +3392,34 @@
         e.preventDefault();
         e.stopPropagation();
         return;
+      }
+    }
+
+    // Enclausuramento de foco acessível (Focus Trap - WCAG 2.4.3)
+    if (e.key === 'Tab') {
+      const activeDialog = getActiveModalDialog();
+      if (!activeDialog) return;
+
+      const focusableSelector = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+      const focusables = Array.from(activeDialog.querySelectorAll(focusableSelector)).filter(el => {
+        return el.offsetWidth > 0 && el.offsetHeight > 0 && window.getComputedStyle(el).visibility !== 'hidden';
+      });
+
+      if (focusables.length === 0) return;
+
+      const firstEl = focusables[0];
+      const lastEl = focusables[focusables.length - 1];
+
+      if (e.shiftKey) {
+        if (document.activeElement === firstEl || !activeDialog.contains(document.activeElement)) {
+          lastEl.focus();
+          e.preventDefault();
+        }
+      } else {
+        if (document.activeElement === lastEl || !activeDialog.contains(document.activeElement)) {
+          firstEl.focus();
+          e.preventDefault();
+        }
       }
     }
   });
