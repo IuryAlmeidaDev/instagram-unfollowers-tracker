@@ -351,8 +351,299 @@
     return updated;
   }
 
-  // Busca lista de usuários que você bloqueou no Instagram
-  async function fetchBlockedByMe() {
+  // Limpa e formata strings decodificadas de JSON ou HTML
+  function cleanJsonString(str) {
+    if (!str || typeof str !== 'string') return '';
+    try {
+      return JSON.parse(`"${str}"`);
+    } catch (e) {
+      return str
+        .replace(/\\u0026/g, '&')
+        .replace(/\\u003c/g, '<')
+        .replace(/\\u003e/g, '>')
+        .replace(/\\"/g, '"')
+        .replace(/\\\//g, '/')
+        .replace(/\\\\/g, '\\')
+        .trim();
+    }
+  }
+
+  // Tenta identificar o nome de usuário da conta logada atualmente
+  function getLoggedInUsername() {
+    try {
+      const profileLinks = Array.from(document.querySelectorAll('a[href^="/"]'));
+      for (const a of profileLinks) {
+        const href = a.getAttribute('href') || '';
+        if (a.querySelector('img[alt*="perfil"], img[alt*="profile"]') || 
+            (a.textContent || '').toLowerCase().includes('perfil') || 
+            (a.textContent || '').toLowerCase().includes('profile')) {
+          const match = href.match(/^\/([a-zA-Z0-9_\.]+)\/?$/);
+          if (match && !['explore', 'reels', 'direct', 'stories', 'accounts'].includes(match[1].toLowerCase())) {
+            return match[1].toLowerCase();
+          }
+        }
+      }
+    } catch (e) {}
+    return '';
+  }
+
+  // Extrai contas bloqueadas diretamente do DOM de /accounts/blocked_accounts/
+  function scrapeBlockedAccountsFromDocument(doc) {
+    if (!doc) return [];
+    const users = [];
+    const seenUsernames = new Set();
+    const myUsername = (getLoggedInUsername() || '').toLowerCase();
+
+    const allButtons = Array.from(doc.querySelectorAll('button, div[role="button"], a[role="button"]'));
+    const unblockButtons = allButtons.filter(btn => {
+      const txt = (btn.textContent || '').trim().toLowerCase();
+      return txt === 'desbloquear' || txt === 'unblock';
+    });
+
+    for (const btn of unblockButtons) {
+      let row = btn.closest('li') || btn.closest('div[style*="flex"]') || btn.parentElement;
+      for (let step = 0; step < 7 && row && row !== doc.body; step++) {
+        let username = '';
+        let fullName = '';
+        let avatar = '';
+
+        const img = row.querySelector('img[src*="instagram"], img[src*="cdn"], img[src*="fbcdn"]');
+        if (img) {
+          avatar = img.getAttribute('src') || img.src || '';
+          const alt = img.getAttribute('alt') || '';
+          if (alt) {
+            const cleanAlt = alt
+              .replace(/^foto\s+do\s+perfil\s+de\s+/i, '')
+              .replace(/'s\s+profile\s+picture$/i, '')
+              .replace(/^profile\s+picture\s+of\s+/i, '')
+              .trim();
+            if (/^[a-zA-Z0-9_\.]{3,30}$/.test(cleanAlt) && cleanAlt.toLowerCase() !== myUsername) {
+              username = cleanAlt;
+            }
+          }
+        }
+
+        if (!username) {
+          const links = Array.from(row.querySelectorAll('a[href^="/"]'));
+          for (const a of links) {
+            const href = a.getAttribute('href') || '';
+            const match = href.match(/^\/([a-zA-Z0-9_\.]+)\/?$/);
+            if (match && !['accounts', 'explore', 'direct', 'reels', 'stories'].includes(match[1].toLowerCase())) {
+              if (match[1].toLowerCase() !== myUsername) {
+                username = match[1];
+                break;
+              }
+            }
+          }
+        }
+
+        if (!username) {
+          const textElements = Array.from(row.querySelectorAll('span, div, a'))
+            .map(el => (el.textContent || '').trim())
+            .filter(t => t.length >= 3 && t.length <= 30 && !['desbloquear', 'unblock', 'contas bloqueadas'].includes(t.toLowerCase()));
+
+          for (const txt of textElements) {
+            if (/^[a-zA-Z0-9_\.]{3,30}$/.test(txt) && !txt.includes(' ') && txt.toLowerCase() !== myUsername) {
+              username = txt;
+              break;
+            }
+          }
+        }
+
+        if (username && !seenUsernames.has(username.toLowerCase()) && username.toLowerCase() !== myUsername) {
+          const texts = Array.from(row.querySelectorAll('span, div'))
+            .map(el => (el.textContent || '').trim())
+            .filter(t => t && t !== username && !['desbloquear', 'unblock'].includes(t.toLowerCase()));
+          if (texts.length > 0) {
+            fullName = texts[0];
+          }
+
+          seenUsernames.add(username.toLowerCase());
+          users.push({
+            username: username,
+            full_name: fullName || username,
+            profile_pic_url: avatar || '',
+            id: '',
+            pk: '',
+            is_verified: false,
+            is_private: false
+          });
+          break;
+        }
+
+        row = row.parentElement;
+      }
+    }
+
+    return users;
+  }
+
+  // Localiza o bloco JSON delimitado por chaves que engloba um índice
+  function getEnclosingJsonObject(text, matchIndex) {
+    let braceCount = 0;
+    let start = -1;
+    for (let i = matchIndex; i >= 0; i--) {
+      if (text[i] === '}') braceCount++;
+      else if (text[i] === '{') {
+        if (braceCount === 0) {
+          start = i;
+          break;
+        }
+        braceCount--;
+      }
+    }
+    if (start === -1) return text.slice(Math.max(0, matchIndex - 100), Math.min(text.length, matchIndex + 300));
+
+    braceCount = 0;
+    let end = -1;
+    for (let i = start; i < text.length; i++) {
+      if (text[i] === '{') braceCount++;
+      else if (text[i] === '}') {
+        braceCount--;
+        if (braceCount === 0) {
+          end = i + 1;
+          break;
+        }
+      }
+    }
+    if (end === -1) return text.slice(start, Math.min(text.length, start + 600));
+    return text.slice(start, end);
+  }
+
+  // Percorre recursivamente objetos JSON procurando estruturas de usuário bloqueado
+  function findBlockedUsersInJson(obj, users, seenUsernames, myUsername, myUserId) {
+    if (!obj || typeof obj !== 'object') return;
+
+    if (obj.username && typeof obj.username === 'string') {
+      const uname = obj.username.toLowerCase().trim();
+      const uid = String(obj.pk || obj.id || obj.pk_id || '');
+      const isMe = (myUsername && uname === myUsername) || (myUserId && uid && uid === String(myUserId));
+      const isReserved = ['instagram', 'facebook', 'meta', 'threads', 'null', 'undefined', 'true', 'false', 'explore', 'reels', 'direct'].includes(uname);
+
+      if (!isMe && !isReserved && !seenUsernames.has(uname)) {
+        seenUsernames.add(uname);
+        users.push({
+          username: obj.username.trim(),
+          full_name: cleanJsonString(obj.full_name) || obj.username.trim(),
+          profile_pic_url: cleanJsonString(obj.profile_pic_url || obj.profile_pic_url_hd || ''),
+          id: uid,
+          pk: uid,
+          is_verified: !!obj.is_verified,
+          is_private: !!obj.is_private
+        });
+      }
+    }
+
+    if (Array.isArray(obj)) {
+      for (const item of obj) {
+        findBlockedUsersInJson(item, users, seenUsernames, myUsername, myUserId);
+      }
+      return;
+    }
+
+    for (const key of Object.keys(obj)) {
+      findBlockedUsersInJson(obj[key], users, seenUsernames, myUsername, myUserId);
+    }
+  }
+
+  // Extrai objetos de usuários de um texto/script usando casamento inteligente
+  function extractUsersFromText(text, users, seenUsernames, myUsername) {
+    if (!text || typeof text !== 'string') return;
+
+    const userRegex = /"username"\s*:\s*"([a-zA-Z0-9_\.]+)"/g;
+    let uMatch;
+
+    while ((uMatch = userRegex.exec(text)) !== null) {
+      const uname = uMatch[1];
+      const unameLower = uname.toLowerCase();
+
+      if (unameLower === myUsername) continue;
+      if (['instagram', 'facebook', 'meta', 'threads', 'null', 'undefined', 'true', 'false', 'explore', 'reels', 'direct'].includes(unameLower)) continue;
+      if (seenUsernames.has(unameLower)) continue;
+
+      const context = getEnclosingJsonObject(text, uMatch.index);
+
+      let fullName = uname;
+      const fnMatch = context.match(/"full_name"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/);
+      if (fnMatch && fnMatch[1]) {
+        fullName = cleanJsonString(fnMatch[1]);
+      }
+
+      let picUrl = '';
+      const picMatch = context.match(/"profile_pic_url(?:_hd)?"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/);
+      if (picMatch && picMatch[1]) {
+        picUrl = cleanJsonString(picMatch[1]);
+      }
+
+      let id = '';
+      const idMatch = context.match(/"(?:pk|id|pk_id)"\s*:\s*"?(\d+)"?/);
+      if (idMatch && idMatch[1]) {
+        id = idMatch[1];
+      }
+
+      const isVerified = /"is_verified"\s*:\s*true/.test(context);
+      const isPrivate = /"is_private"\s*:\s*true/.test(context);
+
+      seenUsernames.add(unameLower);
+      users.push({
+        username: uname,
+        full_name: fullName || uname,
+        profile_pic_url: picUrl || '',
+        id: id || '',
+        pk: id || '',
+        is_verified: isVerified,
+        is_private: isPrivate
+      });
+    }
+  }
+
+  // Extrai usuários bloqueados de todas as tags <script> e payloads do SSR do Instagram
+  function extractBlockedUsersFromScripts(html) {
+    const users = [];
+    const seenUsernames = new Set();
+    const myUsername = (getLoggedInUsername() || '').toLowerCase();
+    const myUserId = getLoggedInUserId();
+
+    if (!html || typeof html !== 'string') return users;
+
+    const scriptRegex = /<script\b[^>]*>([\s\S]*?)<\/script>/gi;
+    let match;
+
+    while ((match = scriptRegex.exec(html)) !== null) {
+      const content = match[1];
+      if (!content) continue;
+
+      const trimmed = content.trim();
+      if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          findBlockedUsersInJson(parsed, users, seenUsernames, myUsername, myUserId);
+        } catch (e) {
+          extractUsersFromText(content, users, seenUsernames, myUsername);
+        }
+      } else {
+        const jsonBlobMatch = content.match(/window\._sharedData\s*=\s*(\{[\s\S]*?\});/) ||
+                              content.match(/requireLazy\(\[[^\]]*\],\s*function\([^)]*\)\s*\{\s*require\("PolarisBlockedAccountsRoot"\)\.render\(([\s\S]*?)\);\s*\}\);/);
+        if (jsonBlobMatch && jsonBlobMatch[1]) {
+          try {
+            const parsed = JSON.parse(jsonBlobMatch[1]);
+            findBlockedUsersInJson(parsed, users, seenUsernames, myUsername, myUserId);
+          } catch (e) {}
+        }
+        extractUsersFromText(content, users, seenUsernames, myUsername);
+      }
+    }
+
+    extractUsersFromText(html, users, seenUsernames, myUsername);
+
+    return users;
+  }
+
+  // Resolve o ID numérico do usuário a partir do username quando necessário
+  async function resolveUserIdByUsername(username) {
+    if (!username) return null;
+    const clean = username.toLowerCase().trim();
+
     try {
       const csrf = getCsrfToken();
       const headers = {
@@ -361,26 +652,193 @@
       };
       if (csrf) headers['X-CSRFToken'] = csrf;
 
-      const res = await fetch('/api/v1/users/blocked_list/', {
+      const searchRes = await fetch(`/api/v1/web/search/topsearch/?context=blended&query=${encodeURIComponent(clean)}`, {
         headers: headers,
         credentials: 'include'
       });
+      if (searchRes.ok) {
+        const data = await searchRes.json();
+        const match = (data.users || []).find(item => item.user && item.user.username.toLowerCase() === clean);
+        if (match && match.user && (match.user.pk || match.user.id)) {
+          return String(match.user.pk || match.user.id);
+        }
+      }
+    } catch (e) {}
+
+    try {
+      const pageRes = await fetch(`/${encodeURIComponent(clean)}/`, {
+        credentials: 'include',
+        cache: 'no-store'
+      });
+      if (pageRes.ok) {
+        const html = await pageRes.text();
+        const match = html.match(/"(?:pk|id|user_id)"\s*:\s*"?(\d+)"?/);
+        if (match && match[1]) {
+          return match[1];
+        }
+      }
+    } catch (e) {}
+
+    return null;
+  }
+
+  // Busca lista de usuários que você bloqueou no Instagram com múltiplas camadas de detecção
+  async function fetchBlockedByMe() {
+    let allUsers = [];
+    const seenUsernames = new Set();
+    const myUsername = (getLoggedInUsername() || '').toLowerCase();
+    const myUid = getLoggedInUserId();
+
+    function addUser(u) {
+      if (!u || !u.username) return;
+      const uname = u.username.toLowerCase().trim();
+
+      if (myUsername && uname === myUsername) return;
+      if (u.id && myUid && String(u.id) === String(myUid)) return;
+      if (u.pk && myUid && String(u.pk) === String(myUid)) return;
+      if (['instagram', 'facebook', 'meta', 'threads', 'null', 'undefined', 'true', 'false', 'explore', 'reels', 'direct'].includes(uname)) return;
+
+      if (!seenUsernames.has(uname)) {
+        seenUsernames.add(uname);
+        allUsers.push({
+          username: u.username.trim(),
+          full_name: u.full_name || u.username.trim(),
+          profile_pic_url: u.profile_pic_url || '',
+          id: String(u.pk || u.id || ''),
+          pk: String(u.pk || u.id || ''),
+          is_verified: !!u.is_verified,
+          is_private: !!u.is_private
+        });
+      }
+    }
+
+    // 1. CAMADA 1: Se a página atual já for a de contas bloqueadas, raspa o DOM imediatamente
+    try {
+      if (window.location.pathname.includes('/accounts/blocked_accounts')) {
+        const domUsers = scrapeBlockedAccountsFromDocument(document);
+        domUsers.forEach(addUser);
+      }
+    } catch (e) {
+      console.warn('Erro ao raspar DOM atual de bloqueados:', e);
+    }
+
+    // 2. CAMADA 2: Consulta o cache local (chrome.storage.local) para carregar rápido
+    try {
+      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+        const cacheData = await new Promise(resolve => {
+          chrome.storage.local.get(['ig_blocked_by_me_cache'], res => resolve(res ? res.ig_blocked_by_me_cache : null));
+        });
+        if (Array.isArray(cacheData) && cacheData.length > 0) {
+          cacheData.forEach(addUser);
+        }
+      }
+    } catch (e) {
+      console.warn('Erro ao ler cache de bloqueados:', e);
+    }
+
+    // 3. CAMADA 3: Busca HTML SSR da página /accounts/blocked_accounts/ com a sessão ativa
+    let htmlFetchSucceeded = false;
+    try {
+      const res = await fetch('/accounts/blocked_accounts/', {
+        credentials: 'include',
+        cache: 'no-store'
+      });
 
       if (res.ok) {
-        const data = await res.json();
-        return {
-          success: true,
-          users: data.blocked_list || []
-        };
+        htmlFetchSucceeded = true;
+        const html = await res.text();
+
+        // 3A. Extrai do DOM usando DOMParser
+        try {
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(html, 'text/html');
+          const docUsers = scrapeBlockedAccountsFromDocument(doc);
+          docUsers.forEach(addUser);
+        } catch (e) {
+          console.warn('Erro ao parsear DOM do HTML de bloqueados:', e);
+        }
+
+        // 3B. Extrai dos scripts e JSON embutidos
+        try {
+          const scriptUsers = extractBlockedUsersFromScripts(html);
+          scriptUsers.forEach(addUser);
+        } catch (e) {
+          console.warn('Erro ao extrair scripts de bloqueados:', e);
+        }
       }
-      return { success: false, users: [], message: 'Não foi possível carregar a lista de bloqueados.' };
     } catch (e) {
-      return { success: false, users: [], message: e.message };
+      console.warn('Erro ao fazer fetch de /accounts/blocked_accounts/:', e);
     }
+
+    // 4. CAMADA 4: Tenta endpoints de API conhecidos
+    const csrf = getCsrfToken();
+    const apiHeaders = {
+      'X-IG-App-ID': '936619743392459',
+      'X-Requested-With': 'XMLHttpRequest'
+    };
+    if (csrf) apiHeaders['X-CSRFToken'] = csrf;
+
+    const endpointsToTry = [
+      '/api/v1/friendships/blocked_users/',
+      '/api/v1/privacy/blocked_users/',
+      '/api/v1/users/blocked_list/?count=200',
+      '/api/v1/users/blocked_list/',
+      '/api/v1/web/privacy/blocked_users/'
+    ];
+
+    for (const ep of endpointsToTry) {
+      if (allUsers.length > 0) break;
+      try {
+        const apiRes = await fetch(ep, {
+          headers: apiHeaders,
+          credentials: 'include'
+        });
+        if (apiRes.ok) {
+          const data = await apiRes.json();
+          const list = data.blocked_list || data.users || data.blocked_users || [];
+          if (Array.isArray(list) && list.length > 0) {
+            list.forEach(item => {
+              const u = item.user || item;
+              addUser(u);
+            });
+            break;
+          }
+        }
+      } catch (e) {}
+    }
+
+    // Salva no cache local se encontrou usuários
+    if (allUsers.length > 0 && typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+      chrome.storage.local.set({ ig_blocked_by_me_cache: allUsers });
+    }
+
+    if (allUsers.length > 0) {
+      return {
+        success: true,
+        users: allUsers
+      };
+    }
+
+    // Se o HTML retornou 200 OK e realmente não há contas bloqueadas
+    if (htmlFetchSucceeded) {
+      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+        chrome.storage.local.set({ ig_blocked_by_me_cache: [] });
+      }
+      return {
+        success: true,
+        users: []
+      };
+    }
+
+    return {
+      success: false,
+      users: [],
+      message: 'Não foi possível carregar a lista de bloqueados automaticamente.'
+    };
   }
 
   // Desbloqueia um usuário diretamente na API do Instagram
-  async function unblockUserApi(userId) {
+  async function unblockUserApi(userId, username) {
     try {
       const csrf = getCsrfToken();
       const headers = {
@@ -390,16 +848,61 @@
       };
       if (csrf) headers['X-CSRFToken'] = csrf;
 
-      const body = new URLSearchParams({ user_id: String(userId) }).toString();
-      const res = await fetch(`/api/v1/friendships/unblock/${userId}/`, {
+      let targetId = userId;
+      if ((!targetId || targetId === 'undefined' || targetId === 'null') && username) {
+        targetId = await resolveUserIdByUsername(username);
+      }
+
+      if (!targetId) {
+        console.warn('Não foi possível obter o ID do usuário para desbloquear:', username);
+        return false;
+      }
+
+      const body = new URLSearchParams({ user_id: String(targetId) }).toString();
+
+      let res = await fetch(`/api/v1/web/friendships/${targetId}/unblock/`, {
         method: 'POST',
         headers: headers,
         body: body,
         credentials: 'include'
       });
 
-      return res.ok;
+      if (!res.ok) {
+        res = await fetch(`/api/v1/friendships/unblock/${targetId}/`, {
+          method: 'POST',
+          headers: headers,
+          body: body,
+          credentials: 'include'
+        });
+      }
+
+      if (!res.ok) {
+        res = await fetch(`/web/friendships/${targetId}/unblock/`, {
+          method: 'POST',
+          headers: headers,
+          body: body,
+          credentials: 'include'
+        });
+      }
+
+      if (res.ok) {
+        if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+          chrome.storage.local.get(['ig_blocked_by_me_cache'], data => {
+            const list = data.ig_blocked_by_me_cache || [];
+            const updated = list.filter(item => {
+              if (username && item.username.toLowerCase() === username.toLowerCase()) return false;
+              if (targetId && (String(item.id) === String(targetId) || String(item.pk) === String(targetId))) return false;
+              return true;
+            });
+            chrome.storage.local.set({ ig_blocked_by_me_cache: updated });
+          });
+        }
+        return true;
+      }
+
+      return false;
     } catch (e) {
+      console.error('Erro ao desbloquear usuário:', e);
       return false;
     }
   }
@@ -869,6 +1372,15 @@
     const blockedByListContainer = modal.querySelector('#igBlockedByListContainer');
     const blockedByCounterText = modal.querySelector('#igBlockedByCounterText');
 
+    // Preenche imediatamente a badge de bloqueados com o cache local se existir
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+      chrome.storage.local.get(['ig_blocked_by_me_cache'], data => {
+        if (data && Array.isArray(data.ig_blocked_by_me_cache)) {
+          blockedMeBadge.textContent = data.ig_blocked_by_me_cache.length;
+        }
+      });
+    }
+
     const input = modal.querySelector('#igBlockUserInput');
     const submitBtn = modal.querySelector('#igBlockSubmitBtn');
     const resultBox = modal.querySelector('#igBlockResultContainer');
@@ -957,8 +1469,8 @@
 
     // Carrega aba "Quem Eu Bloqueei"
     let blockedMeLoaded = false;
-    async function loadBlockedMeTab() {
-      if (blockedMeLoaded) return;
+    async function loadBlockedMeTab(forceRefresh = false) {
+      if (blockedMeLoaded && !forceRefresh) return;
       const loading = modal.querySelector('#igBlockedMeLoading');
       const container = modal.querySelector('#igBlockedMeListContainer');
 
@@ -977,22 +1489,46 @@
         container.innerHTML = `
           <div class="ig-unf-block-empty-state">
             <span style="font-size: 26px; display: block; margin-bottom: 6px;">🕊️</span>
-            <strong style="color: #f4f4f5; display: block; margin-bottom: 4px;">Nenhuma conta bloqueada</strong>
-            <span>${res.success ? 'Você não possui nenhuma conta bloqueada no Instagram.' : (res.message || 'Não foi possível carregar a lista de bloqueados.')}</span>
+            <strong style="color: #f4f4f5; display: block; margin-bottom: 4px;">Nenhuma conta bloqueada encontrada</strong>
+            <span style="font-size: 12px; color: #a1a1aa; line-height: 1.5; display: block; margin-bottom: 12px;">
+              ${res.success ? 'Você não possui nenhuma conta bloqueada no Instagram.' : (res.message || 'Não foi possível carregar a lista de bloqueados automaticamente.')}
+            </span>
+            <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
+              <button id="igRetryBlockedMeBtn" class="ig-unf-block-item-btn" style="background: rgba(255,255,255,0.08); padding: 6px 14px; border-radius: 8px; color: #fff; border: 1px solid rgba(255,255,255,0.15); cursor: pointer; display: inline-flex; align-items: center; gap: 5px;">
+                ${SVGS.refresh} <span>Tentar Novamente</span>
+              </button>
+              <a href="https://www.instagram.com/accounts/blocked_accounts/" target="_blank" rel="noopener" class="ig-unf-block-item-btn" style="background: #3b82f6; padding: 6px 14px; border-radius: 8px; color: #fff; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; font-weight: 500;">
+                <span>🔗 Abrir Bloqueados no Instagram</span>
+              </a>
+            </div>
           </div>
         `;
+        const retryBtn = container.querySelector('#igRetryBlockedMeBtn');
+        if (retryBtn) {
+          retryBtn.addEventListener('click', () => loadBlockedMeTab(true));
+        }
         return;
       }
 
       container.innerHTML = `
-        <div class="ig-unf-block-section-title">
+        <div class="ig-unf-block-section-title" style="display: flex; justify-content: space-between; align-items: center;">
           <span>👥 Contas Bloqueadas por Você</span>
-          <span>${users.length} conta(s)</span>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span>${users.length} conta(s)</span>
+            <button id="igRefreshBlockedMeListBtn" style="background: transparent; border: none; color: #a1a1aa; cursor: pointer; font-size: 12px; display: inline-flex; align-items: center; gap: 4px; padding: 2px 6px; border-radius: 4px;" title="Recarregar e sincronizar">
+              ${SVGS.refresh} <span>Sincronizar</span>
+            </button>
+          </div>
         </div>
       `;
 
+      const listRefreshBtn = container.querySelector('#igRefreshBlockedMeListBtn');
+      if (listRefreshBtn) {
+        listRefreshBtn.addEventListener('click', () => loadBlockedMeTab(true));
+      }
+
       users.forEach(u => {
-        const uid = String(u.pk || u.id);
+        const uid = String(u.pk || u.id || '');
         const itemEl = document.createElement('div');
         itemEl.className = 'ig-unf-block-list-item';
 
@@ -1008,7 +1544,7 @@
             </div>
           </div>
           <div class="ig-unf-block-item-actions">
-            <button class="ig-unf-block-item-btn unblock" data-action="unblock" data-uid="${uid}">
+            <button class="ig-unf-block-item-btn unblock" data-action="unblock" data-uid="${uid}" data-username="${u.username}">
               <span>Desbloquear</span>
             </button>
             <a href="https://www.instagram.com/${u.username}/" target="_blank" rel="noopener" class="ig-unf-block-item-btn" title="Abrir Perfil">
@@ -1021,7 +1557,7 @@
         unblockBtn.addEventListener('click', async () => {
           unblockBtn.disabled = true;
           unblockBtn.innerHTML = `<div class="ig-unf-spinner-sm"></div> <span>Desbloqueando...</span>`;
-          const ok = await unblockUserApi(uid);
+          const ok = await unblockUserApi(uid, u.username);
           if (ok) {
             unblockBtn.className = 'ig-unf-block-item-btn unblocked-done';
             unblockBtn.innerHTML = `<span>Desbloqueado ✓</span>`;
@@ -1029,6 +1565,12 @@
             if (!isNaN(currentCount) && currentCount > 0) {
               blockedMeBadge.textContent = currentCount - 1;
             }
+            setTimeout(() => {
+              itemEl.style.transition = 'all 0.3s ease';
+              itemEl.style.opacity = '0';
+              itemEl.style.transform = 'translateX(20px)';
+              setTimeout(() => itemEl.remove(), 300);
+            }, 800);
           } else {
             unblockBtn.disabled = false;
             unblockBtn.innerHTML = `<span>Tentar Novamente</span>`;
@@ -2220,6 +2762,30 @@
       sendResponse({ status: 'ok' });
     }
   });
+
+  // Sincronização e monitoramento automático da página nativa de contas bloqueadas
+  function monitorBlockedAccountsPage() {
+    if (!window.location.pathname.includes('/accounts/blocked_accounts')) return;
+    function sync() {
+      try {
+        const users = scrapeBlockedAccountsFromDocument(document);
+        if (users.length > 0 && typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+          chrome.storage.local.set({ ig_blocked_by_me_cache: users });
+        }
+      } catch (e) {}
+    }
+    setTimeout(sync, 800);
+    setTimeout(sync, 2000);
+    setTimeout(sync, 4000);
+
+    try {
+      const observer = new MutationObserver(() => sync());
+      observer.observe(document.body, { childList: true, subtree: true });
+    } catch (e) {}
+  }
+
+  monitorBlockedAccountsPage();
+  window.addEventListener('popstate', monitorBlockedAccountsPage);
 
   // Injeção do botão na página do Instagram
   setTimeout(injectFloatingButton, 1000);
