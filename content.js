@@ -54,6 +54,66 @@
     refresh: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>`
   };
 
+  // Sistema de Toasts Elegantes Dark Mode (Substitui alerts nativos)
+  function showToast(message, type = 'info', duration = 4000) {
+    let container = document.getElementById('igToastContainer');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'igToastContainer';
+      container.className = 'ig-unf-toast-container';
+      document.body.appendChild(container);
+    }
+
+    const toast = document.createElement('div');
+    toast.className = `ig-unf-toast ig-unf-toast-${type}`;
+
+    let iconSvg = SVGS.sparkles;
+    if (type === 'success') iconSvg = SVGS.check;
+    else if (type === 'warning') iconSvg = SVGS.alert;
+    else if (type === 'error') iconSvg = SVGS.block;
+
+    toast.innerHTML = `
+      <div class="ig-unf-toast-icon">${iconSvg}</div>
+      <div class="ig-unf-toast-message"></div>
+      <button class="ig-unf-toast-close" type="button" aria-label="Fechar">${SVGS.close}</button>
+    `;
+
+    const msgEl = toast.querySelector('.ig-unf-toast-message');
+    if (msgEl) {
+      if (typeof message === 'string' && (message.includes('<') || message.includes('&'))) {
+        msgEl.innerHTML = message;
+      } else {
+        msgEl.textContent = message || '';
+      }
+    }
+
+    container.appendChild(toast);
+
+    let isDismissed = false;
+    const dismiss = () => {
+      if (isDismissed) return;
+      isDismissed = true;
+      toast.classList.add('ig-toast-leaving');
+      setTimeout(() => {
+        toast.remove();
+        if (container && container.children.length === 0) {
+          container.remove();
+        }
+      }, 200);
+    };
+
+    const closeBtn = toast.querySelector('.ig-unf-toast-close');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', dismiss);
+    }
+
+    if (duration > 0) {
+      setTimeout(dismiss, duration);
+    }
+
+    return { dismiss };
+  }
+
   // Obtém o ID do usuário logado via cookie ds_user_id
   function getLoggedInUserId() {
     const match = document.cookie.match(/ds_user_id=([0-9]+)/);
@@ -1777,10 +1837,151 @@
     if (vipBadge) vipBadge.textContent = vipWhitelist.size;
   }
 
-  // Ação Individual de Deixar de Seguir
-  async function handleUnfollow(targetUserId, btn) {
-    btn.disabled = true;
-    btn.textContent = 'Deixando...';
+  // -------------------------------------------------------------
+  // SEGURANÇA OPERACIONAL: DESFAZER INDIVIDUAL (FLOATING UNDO TOAST 5s)
+  // -------------------------------------------------------------
+  const pendingUnfollows = new Map();
+
+  function cancelPendingUnfollow(targetUserId, showFeedback = true) {
+    const pending = pendingUnfollows.get(targetUserId);
+    if (!pending) return;
+
+    clearTimeout(pending.timeoutId);
+    clearInterval(pending.intervalId);
+
+    if (pending.toastEl) {
+      pending.toastEl.classList.add('ig-undo-closing');
+      setTimeout(() => pending.toastEl.remove(), 200);
+    }
+
+    if (pending.btn) {
+      pending.btn.className = pending.originalClass || 'ig-unf-unfollow-btn';
+      pending.btn.innerHTML = pending.originalHtml || 'Deixar de Seguir';
+      pending.btn.disabled = false;
+      if (pending.originalStyle) {
+        pending.btn.style.cssText = pending.originalStyle;
+      }
+    }
+
+    pendingUnfollows.delete(targetUserId);
+
+    if (showFeedback) {
+      showToast('Ação cancelada', 'info', 2500);
+    }
+  }
+
+  function commitPendingUnfollow(targetUserId) {
+    const pending = pendingUnfollows.get(targetUserId);
+    if (!pending) return;
+
+    clearTimeout(pending.timeoutId);
+    clearInterval(pending.intervalId);
+
+    if (pending.toastEl) {
+      pending.toastEl.classList.add('ig-undo-closing');
+      setTimeout(() => pending.toastEl.remove(), 200);
+    }
+
+    const { btn, username } = pending;
+    pendingUnfollows.delete(targetUserId);
+
+    unfollowUser(targetUserId, btn, username);
+  }
+
+  // Ação Individual de Deixar de Seguir com Buffer de 5s Reversível
+  function handleUnfollow(targetUserId, btn, username) {
+    // Se o usuário clicar no botão enquanto estiver em contagem regressiva, funciona como "Desfazer"
+    if (pendingUnfollows.has(targetUserId)) {
+      cancelPendingUnfollow(targetUserId, true);
+      return;
+    }
+
+    // Se já havia outra contagem pendente com toast flutuante, comita a anterior imediatamente
+    for (const otherUid of Array.from(pendingUnfollows.keys())) {
+      commitPendingUnfollow(otherUid);
+    }
+
+    if (!username) {
+      const card = btn?.closest('.ig-unf-user-card');
+      username = card?.querySelector('.ig-unf-username')?.textContent?.replace(/[@\s]/g, '') || 'usuário';
+    }
+
+    const originalHtml = btn.innerHTML;
+    const originalClass = btn.className;
+    const originalStyle = btn.style.cssText;
+
+    btn.className = `${originalClass} ig-unf-btn-pending`;
+    btn.innerHTML = `<span>Cancelando... (<strong class="ig-btn-sec">5s</strong>)</span> <span class="ig-btn-undo-link">Desfazer</span>`;
+    btn.disabled = false;
+
+    const modal = overlay?.querySelector('.ig-unf-modal');
+    let undoWrapper = modal?.querySelector('.ig-unf-undo-toast-wrapper');
+    if (modal && !undoWrapper) {
+      undoWrapper = document.createElement('div');
+      undoWrapper.className = 'ig-unf-undo-toast-wrapper';
+      modal.appendChild(undoWrapper);
+    }
+
+    let toast = null;
+    if (undoWrapper) {
+      undoWrapper.innerHTML = '';
+      toast = document.createElement('div');
+      toast.className = 'ig-unf-undo-toast';
+      toast.innerHTML = `
+        <div class="ig-unf-undo-toast-body">
+          <div class="ig-unf-undo-toast-text" title="Deixando de seguir @${username}">
+            <span class="ig-unf-undo-hourglass">⏳</span>
+            <span>Deixando de seguir <strong>@${username}</strong> em <span class="ig-unf-countdown-badge">5s</span>...</span>
+          </div>
+          <button class="ig-unf-undo-toast-btn" type="button">Desfazer</button>
+        </div>
+        <div class="ig-unf-undo-progress-track">
+          <div class="ig-unf-undo-progress-bar"></div>
+        </div>
+      `;
+      undoWrapper.appendChild(toast);
+
+      toast.querySelector('.ig-unf-undo-toast-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        cancelPendingUnfollow(targetUserId, true);
+      });
+    }
+
+    const startTime = Date.now();
+    const countdownBadge = toast?.querySelector('.ig-unf-countdown-badge');
+
+    const intervalId = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const remainingSec = Math.max(1, Math.ceil((5000 - elapsed) / 1000));
+      if (countdownBadge) countdownBadge.textContent = `${remainingSec}s`;
+      const secEl = btn?.querySelector('.ig-btn-sec');
+      if (secEl) secEl.textContent = `${remainingSec}s`;
+    }, 250);
+
+    const timeoutId = setTimeout(() => {
+      commitPendingUnfollow(targetUserId);
+    }, 5000);
+
+    pendingUnfollows.set(targetUserId, {
+      startTime,
+      timeoutId,
+      intervalId,
+      toastEl: toast,
+      btn,
+      username,
+      originalHtml,
+      originalClass,
+      originalStyle
+    });
+  }
+
+  // Execução direta da requisição na API do Instagram após término do countdown
+  async function unfollowUser(targetUserId, btn, username) {
+    const targetBtn = btn || overlay?.querySelector(`[data-uid="${targetUserId}"] [data-action="unfollow"]`);
+    if (targetBtn) {
+      targetBtn.disabled = true;
+      targetBtn.textContent = 'Deixando...';
+    }
 
     const csrf = getCsrfToken();
     const headers = {
@@ -1806,26 +2007,42 @@
       }
 
       if (res.ok) {
-        btn.innerHTML = `${SVGS.check} <span>Deixou de seguir</span>`;
-        btn.style.background = '#27272a';
-        btn.style.borderColor = '#38383e';
-        btn.style.color = '#71717a';
-        btn.disabled = true;
+        if (targetBtn) {
+          targetBtn.innerHTML = `${SVGS.check} <span>Deixou de seguir</span>`;
+          targetBtn.style.background = '#27272a';
+          targetBtn.style.borderColor = '#38383e';
+          targetBtn.style.color = '#71717a';
+          targetBtn.disabled = true;
+        }
+        if (selectedUids.has(targetUserId)) {
+          selectedUids.delete(targetUserId);
+          updateBatchButtonState();
+        }
+        showToast(`Você deixou de seguir @${username || 'o perfil'}.`, 'success', 3000);
       } else {
         const errText = await res.text().catch(() => '');
         console.error('Erro ao deixar de seguir:', res.status, errText);
-        btn.textContent = 'Tentar no perfil ↗';
-        btn.disabled = false;
-        btn.onclick = () => {
-          window.open(`https://www.instagram.com/web/friendships/${targetUserId}/`, '_blank');
-        };
+        if (targetBtn) {
+          targetBtn.textContent = 'Tentar no perfil ↗';
+          targetBtn.disabled = false;
+          targetBtn.onclick = () => {
+            window.open(`https://www.instagram.com/web/friendships/${targetUserId}/`, '_blank');
+          };
+        }
+        showToast('Não foi possível deixar de seguir pelo Instagram.', 'error', 4000);
       }
     } catch (e) {
       console.error('Erro de rede ao deseguir:', e);
-      btn.textContent = 'Erro de rede';
-      btn.disabled = false;
+      if (targetBtn) {
+        targetBtn.textContent = 'Erro de rede';
+        targetBtn.disabled = false;
+      }
+      showToast('Erro de rede ao tentar deixar de seguir.', 'error', 4000);
     }
   }
+
+  // Alias para retrocompatibilidade
+  const executeUnfollow = unfollowUser;
 
   // Ação Individual de Seguir de Volta
   async function handleFollow(targetUserId, btn) {
@@ -2068,7 +2285,7 @@
     } catch (err) {
       isScanning = false;
       isPhase1 = false;
-      alert(`Erro durante a análise: ${err.message}`);
+      showToast(`Erro durante a análise: ${err.message}`, 'error', 5000);
       renderInitialView();
     }
   }
@@ -2211,7 +2428,84 @@
     });
 
     const runBtn = bar.querySelector('#igBatchRunBtn');
-    runBtn.addEventListener('click', startBatchExecution);
+    runBtn.addEventListener('click', promptBatchUnfollow);
+  }
+
+  // Intercepta o clique do deseguir em massa para exibir confirmação segura
+  function promptBatchUnfollow() {
+    if (selectedUids.size === 0 || isBatchRunning) return;
+
+    // Usuário gratuito: aviso caso tente mais de 3 em lote
+    if (!isPro && selectedUids.size > 3) {
+      openProModal();
+      return;
+    }
+
+    openBatchConfirmModal();
+  }
+
+  // Modal de Confirmação Dark Mode para Ação em Lote (Harden Pass)
+  function openBatchConfirmModal() {
+    const existing = overlay?.querySelector('#igBatchConfirmOverlay');
+    if (existing) existing.remove();
+
+    const count = selectedUids.size;
+    const confirmOverlay = document.createElement('div');
+    confirmOverlay.className = 'ig-unf-confirm-overlay';
+    confirmOverlay.id = 'igBatchConfirmOverlay';
+
+    confirmOverlay.innerHTML = `
+      <div class="ig-unf-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="igBatchConfirmTitle">
+        <div class="ig-unf-confirm-header">
+          <div class="ig-unf-confirm-icon-badge">${SVGS.alert}</div>
+          <div class="ig-unf-confirm-title" id="igBatchConfirmTitle">⚠️ Confirmar Ação em Lote</div>
+        </div>
+        <div class="ig-unf-confirm-body">
+          <p class="ig-unf-confirm-subtitle">
+            Você está prestes a deixar de seguir <strong>${count}</strong> ${count === 1 ? 'perfil selecionado' : 'perfis selecionados'}.
+          </p>
+          <div class="ig-unf-confirm-notice">
+            <span class="ig-unf-confirm-notice-icon">${SVGS.shield}</span>
+            <span>As pausas antibloqueio (8 a 13s) serão ativadas para proteger sua conta.</span>
+          </div>
+        </div>
+        <div class="ig-unf-confirm-actions">
+          <button class="ig-unf-confirm-btn cancel" id="igBatchConfirmCancel" type="button">Cancelar</button>
+          <button class="ig-unf-confirm-btn confirm" id="igBatchConfirmProceed" type="button">
+            ${SVGS.trash}
+            <span>Sim, iniciar unfollows</span>
+          </button>
+        </div>
+      </div>
+    `;
+
+    overlay.appendChild(confirmOverlay);
+
+    const closeConfirm = () => {
+      confirmOverlay.classList.add('ig-fade-out');
+      setTimeout(() => confirmOverlay.remove(), 180);
+      document.removeEventListener('keydown', handleKey);
+    };
+
+    const handleKey = (e) => {
+      if (e.key === 'Escape') closeConfirm();
+    };
+    document.addEventListener('keydown', handleKey);
+
+    confirmOverlay.querySelector('#igBatchConfirmCancel').addEventListener('click', closeConfirm);
+    confirmOverlay.addEventListener('click', (e) => {
+      if (e.target === confirmOverlay) closeConfirm();
+    });
+
+    confirmOverlay.querySelector('#igBatchConfirmProceed').addEventListener('click', () => {
+      closeConfirm();
+      startBatchUnfollow();
+    });
+  }
+
+  // Alias para retrocompatibilidade e especificação
+  function startBatchUnfollow() {
+    return startBatchExecution();
   }
 
   function updateBatchButtonState() {
@@ -2464,7 +2758,15 @@
     // Eventos de Ação
     const unfollowBtn = card.querySelector('[data-action="unfollow"]');
     if (unfollowBtn) {
-      unfollowBtn.addEventListener('click', () => handleUnfollow(uid, unfollowBtn));
+      if (pendingUnfollows.has(uid)) {
+        const pending = pendingUnfollows.get(uid);
+        pending.btn = unfollowBtn;
+        unfollowBtn.className = 'ig-unf-unfollow-btn ig-unf-btn-pending';
+        const remainingSec = Math.max(1, Math.ceil((5000 - (Date.now() - pending.startTime)) / 1000));
+        unfollowBtn.innerHTML = `<span>Cancelando... (<strong class="ig-btn-sec">${remainingSec}s</strong>)</span> <span class="ig-btn-undo-link">Desfazer</span>`;
+        unfollowBtn.disabled = false;
+      }
+      unfollowBtn.addEventListener('click', () => handleUnfollow(uid, unfollowBtn, user.username));
     }
 
     const followBtn = card.querySelector('[data-action="follow"]');
@@ -2719,7 +3021,7 @@
   function exportData(format) {
     const list = scanResults[currentTab] || [];
     if (list.length === 0) {
-      alert('Nenhum usuário para exportar nesta lista.');
+      showToast('Nenhum usuário para exportar nesta lista.', 'warning', 4000);
       return;
     }
 

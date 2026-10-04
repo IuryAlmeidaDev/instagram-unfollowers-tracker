@@ -116,6 +116,7 @@
 
 /* Caixa do Modal */
 .ig-unf-modal {
+  position: relative;
   width: 100%;
   max-width: 620px;
   height: 85vh;
@@ -2066,5 +2067,462 @@
   background: #323238;
   border-color: #52525b;
 }
+
+/* ============================================================= */
+/* HARDEN PASS: OPERATIONAL SAFETY & REVERSIBLE ACTIONS          */
+/* ============================================================= */
+
+/* 1. TOAST DE DESFAZER INDIVIDUAL (FLOATING UNDO TOAST - 5s) */
+.ig-unf-undo-toast-wrapper {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100020;
+  width: calc(100% - 40px);
+  max-width: 440px;
+  pointer-events: none;
+}
+
+.ig-unf-undo-toast {
+  pointer-events: auto;
+  background: rgba(24, 24, 27, 0.96);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid #3f3f46;
+  border-radius: 12px;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  animation: igUndoSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+}
+
+@keyframes igUndoSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.ig-unf-undo-toast.ig-undo-closing {
+  animation: igUndoSlideDown 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes igUndoSlideDown {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(14px) scale(0.96);
+  }
+}
+
+.ig-unf-undo-toast-body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 16px;
+  gap: 12px;
+}
+
+.ig-unf-undo-toast-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: #f4f4f5;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ig-unf-undo-hourglass {
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ig-unf-undo-toast-text strong {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.ig-unf-countdown-badge {
+  background: rgba(245, 158, 11, 0.18);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ig-unf-undo-toast-btn {
+  background: #3b82f6;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
+}
+
+.ig-unf-undo-toast-btn:hover {
+  background: #2563eb;
+  transform: scale(1.03);
+}
+
+.ig-unf-undo-toast-btn:active {
+  transform: scale(0.97);
+}
+
+.ig-unf-undo-progress-track {
+  width: 100%;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.ig-unf-undo-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+  width: 100%;
+  animation: igUndoProgress 5s linear forwards;
+}
+
+@keyframes igUndoProgress {
+  from { width: 100%; }
+  to { width: 0%; }
+}
+
+/* Estado pendente no botão do card */
+.ig-unf-unfollow-btn.ig-unf-btn-pending {
+  background: rgba(239, 68, 68, 0.16);
+  border-color: rgba(239, 68, 68, 0.5);
+  color: #fca5a5;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+}
+
+.ig-unf-unfollow-btn.ig-unf-btn-pending:hover {
+  background: rgba(239, 68, 68, 0.28);
+  border-color: #ef4444;
+}
+
+.ig-btn-undo-link {
+  background: #ef4444;
+  color: #ffffff;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  transition: background 0.15s ease;
+}
+
+.ig-unf-unfollow-btn.ig-unf-btn-pending:hover .ig-btn-undo-link {
+  background: #dc2626;
+}
+
+/* 2. MODAL DE CONFIRMAÇÃO DE AÇÃO EM LOTE */
+.ig-unf-confirm-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 1000100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  box-sizing: border-box;
+  animation: igFadeIn 0.18s ease-out;
+}
+
+.ig-unf-confirm-overlay.ig-fade-out {
+  animation: igFadeOut 0.18s ease-in forwards;
+}
+
+.ig-unf-confirm-dialog {
+  width: 100%;
+  max-width: 440px;
+  background: #18181b;
+  border: 1px solid #27272a;
+  border-radius: 16px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  animation: igConfirmPop 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  color: #f4f4f5;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+@keyframes igConfirmPop {
+  from {
+    opacity: 0;
+    transform: scale(0.94) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.ig-unf-confirm-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ig-unf-confirm-icon-badge {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: #fbbf24;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ig-unf-confirm-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+}
+
+.ig-unf-confirm-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ig-unf-confirm-subtitle {
+  font-size: 13px;
+  line-height: 1.5;
+  color: #d4d4d8;
+  margin: 0;
+}
+
+.ig-unf-confirm-subtitle strong {
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.ig-unf-confirm-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.22);
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #6ee7b7;
+}
+
+.ig-unf-confirm-notice-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #34d399;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.ig-unf-confirm-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.ig-unf-confirm-btn {
+  padding: 9px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+}
+
+.ig-unf-confirm-btn.cancel {
+  background: #27272a;
+  border-color: #3f3f46;
+  color: #e4e4e7;
+}
+
+.ig-unf-confirm-btn.cancel:hover {
+  background: #323238;
+  border-color: #52525b;
+  color: #ffffff;
+}
+
+.ig-unf-confirm-btn.confirm {
+  background: #ef4444;
+  color: #ffffff;
+}
+
+.ig-unf-confirm-btn.confirm:hover {
+  background: #dc2626;
+  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.35);
+}
+
+/* 3. SISTEMA DE TOAST REUTILIZÁVEL (SUBSTITUI ALERTS NATIVOS) */
+.ig-unf-toast-container {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10000005;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+  max-width: 90vw;
+}
+
+.ig-unf-toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: rgba(24, 24, 27, 0.95);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid #27272a;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  color: #f4f4f5;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 13px;
+  line-height: 1.4;
+  animation: igToastSlideUp 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  max-width: 480px;
+}
+
+.ig-unf-toast.ig-toast-leaving {
+  animation: igToastSlideDown 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes igToastSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes igToastSlideDown {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(10px) scale(0.96);
+  }
+}
+
+.ig-unf-toast-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ig-unf-toast-message {
+  flex: 1;
+  font-weight: 500;
+  word-break: break-word;
+}
+
+.ig-unf-toast-close {
+  background: transparent;
+  border: none;
+  color: #71717a;
+  padding: 2px;
+  margin-left: 4px;
+  cursor: pointer;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s ease;
+}
+
+.ig-unf-toast-close:hover {
+  color: #ffffff;
+}
+
+.ig-unf-toast-info {
+  border-color: rgba(56, 189, 248, 0.3);
+}
+.ig-unf-toast-info .ig-unf-toast-icon {
+  color: #38bdf8;
+}
+
+.ig-unf-toast-success {
+  border-color: rgba(52, 211, 153, 0.35);
+}
+.ig-unf-toast-success .ig-unf-toast-icon {
+  color: #34d399;
+}
+
+.ig-unf-toast-warning {
+  border-color: rgba(251, 191, 36, 0.35);
+}
+.ig-unf-toast-warning .ig-unf-toast-icon {
+  color: #fbbf24;
+}
+
+.ig-unf-toast-error {
+  border-color: rgba(248, 113, 113, 0.35);
+}
+.ig-unf-toast-error .ig-unf-toast-icon {
+  color: #f87171;
+}
+
 
 
