@@ -46,13 +46,37 @@
     shield: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`,
     sparkles: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>`,
     alert: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
-    trash: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`
+    trash: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`,
+    block: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>`,
+    bell: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>`,
+    userCheck: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></svg>`,
+    userX: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="17" y1="8" x2="22" y2="13"/><line x1="22" y1="8" x2="17" y2="13"/></svg>`
   };
 
   // Obtém o ID do usuário logado via cookie ds_user_id
   function getLoggedInUserId() {
     const match = document.cookie.match(/ds_user_id=([0-9]+)/);
-    return match ? match[1] : null;
+    const uid = match ? match[1] : null;
+    if (uid && typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+      chrome.storage.local.set({ ig_logged_in_user_id: uid });
+    }
+    return uid;
+  }
+
+  // Verifica se um usuário te bloqueou, desativou ou apenas deu unfollow
+  async function checkUserBlockStatus(username) {
+    return new Promise((resolve) => {
+      if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+        chrome.runtime.sendMessage({
+          action: 'check_block_status',
+          username: username
+        }, (res) => {
+          resolve(res || { status: 'error', message: 'Falha na verificação.' });
+        });
+      } else {
+        resolve({ status: 'error', message: 'Extensão não inicializada.' });
+      }
+    });
   }
 
   // Obtém o token CSRF para realizar ações de seguir/deseguir
@@ -242,6 +266,10 @@
             <div id="igProBadgeContainer"></div>
           </div>
           <div class="ig-unf-header-actions">
+            <button class="ig-unf-ghost-btn" id="igBlockModalBtn" title="Verificar se alguém te bloqueou no Instagram">
+              ${SVGS.block}
+              <span>Checar Bloqueio</span>
+            </button>
             <button class="ig-unf-pro-btn" id="igProTriggerBtn">
               ${SVGS.crown}
               <span>Seja PRO</span>
@@ -257,6 +285,7 @@
     document.body.appendChild(overlay);
 
     overlay.querySelector('#igUnfClose').addEventListener('click', closeModal);
+    overlay.querySelector('#igBlockModalBtn').addEventListener('click', () => openBlockCheckerModal());
     overlay.querySelector('#igProTriggerBtn').addEventListener('click', openProModal);
 
     overlay.addEventListener('click', (e) => {
@@ -283,7 +312,7 @@
           <div class="ig-unf-pro-hero-badge">${SVGS.crown}</div>
           <div class="ig-unf-pro-dialog-title">Desbloqueie Todo o Poder com o PRO</div>
           <div class="ig-unf-pro-dialog-subtitle">
-            A identificação de quem não te segue é 100% gratuita. O PRO adiciona automação, histórico e proteção contra unfollow em amigos.
+            A identificação de quem não te segue é 100% gratuita. O PRO adiciona histórico de quem pulou fora, quem te bloqueou e alertas no Desktop.
           </div>
           <button class="ig-unf-close-btn ig-unf-pro-close" id="igProCloseBtn" aria-label="Fechar">${SVGS.close}</button>
         </div>
@@ -297,6 +326,20 @@
             </div>
           </div>
           <div class="ig-unf-pro-feature-item">
+            <div class="ig-unf-pro-feat-icon block">${SVGS.block}</div>
+            <div class="ig-unf-pro-feat-content">
+              <strong>Detector Real de Bloqueios</strong>
+              <span>Diferencia com precisão quem te bloqueou, quem desativou a conta e quem apenas deu unfollow.</span>
+            </div>
+          </div>
+          <div class="ig-unf-pro-feature-item">
+            <div class="ig-unf-pro-feat-icon bell">${SVGS.bell}</div>
+            <div class="ig-unf-pro-feat-content">
+              <strong>Alertas no Desktop (Windows/Mac)</strong>
+              <span>Monitor silencioso em segundo plano que notifica na área de trabalho quando alguém der unfollow.</span>
+            </div>
+          </div>
+          <div class="ig-unf-pro-feature-item">
             <div class="ig-unf-pro-feat-icon star">${SVGS.star}</div>
             <div class="ig-unf-pro-feat-content">
               <strong>Lista VIP Blindada</strong>
@@ -306,29 +349,49 @@
           <div class="ig-unf-pro-feature-item">
             <div class="ig-unf-pro-feat-icon batch">${SVGS.trash}</div>
             <div class="ig-unf-pro-feat-content">
-              <strong>Deseguir em Massa Inteligente</strong>
-              <span>Selecione 10, 25 ou 50 perfis com fila de pausas humanas aleatórias anti-bloqueio.</span>
+              <strong>Deseguir em Massa Seguro</strong>
+              <span>Fila inteligente com intervalos humanos anti-bloqueio entre 8 e 13 segundos.</span>
             </div>
           </div>
           <div class="ig-unf-pro-feature-item">
             <div class="ig-unf-pro-feat-icon chart">${SVGS.download}</div>
             <div class="ig-unf-pro-feat-content">
               <strong>Exportação Detalhada</strong>
-              <span>Exporte relatórios prontos em CSV com data, status de amigos e links diretos.</span>
+              <span>Exporte relatórios prontos em CSV e TXT com status VIP e links diretos.</span>
             </div>
           </div>
         </div>
 
         <div class="ig-unf-pro-activation-box">
-          <div class="ig-unf-pro-act-label">Ativação de Licença PRO</div>
-          <div class="ig-unf-pro-input-group">
-            <input type="text" class="ig-unf-pro-input" id="igProKeyInput" placeholder="Insira sua chave (ex: PRO-VIP-2026)" value="${isPro ? 'PRO-VIP-2026' : ''}" ${isPro ? 'disabled' : ''}>
-            <button class="ig-unf-pro-submit-btn" id="igProActivateBtn">${isPro ? 'Ativo ✓' : 'Ativar Agora'}</button>
-          </div>
-          <div class="ig-unf-pro-act-hint">
-            💡 Chave de demonstração e testes: <code>PRO-VIP-2026</code>
-          </div>
-          <div id="igProStatusFeedback" class="ig-unf-pro-feedback"></div>
+          ${isPro ? `
+            <div class="ig-unf-pro-act-label">Plano PRO Ativo ✓</div>
+            <div class="ig-unf-pro-settings-group">
+              <label class="ig-unf-pro-toggle-label">
+                <span>🔔 Alertas de Unfollow na Área de Trabalho</span>
+                <input type="checkbox" id="igProNotifSwitch" checked style="accent-color: #f59e0b; cursor: pointer;">
+              </label>
+              <div class="ig-unf-pro-actions-row">
+                <button class="ig-unf-pro-secondary-btn" id="igProTestNotifModalBtn">
+                  <span>${SVGS.bell}</span>
+                  <span>Testar Alerta no Desktop</span>
+                </button>
+                <button class="ig-unf-pro-secondary-btn" id="igProOpenBlockFromModalBtn">
+                  <span>${SVGS.block}</span>
+                  <span>Checar Bloqueio por @</span>
+                </button>
+              </div>
+            </div>
+          ` : `
+            <div class="ig-unf-pro-act-label">Ativação de Licença PRO</div>
+            <div class="ig-unf-pro-input-group">
+              <input type="text" class="ig-unf-pro-input" id="igProKeyInput" placeholder="Insira sua chave (ex: PRO-VIP-2026)">
+              <button class="ig-unf-pro-submit-btn" id="igProActivateBtn">Ativar Agora</button>
+            </div>
+            <div class="ig-unf-pro-act-hint">
+              💡 Chave de demonstração e testes: <code>PRO-VIP-2026</code>
+            </div>
+            <div id="igProStatusFeedback" class="ig-unf-pro-feedback"></div>
+          `}
         </div>
       </div>
     `;
@@ -340,29 +403,206 @@
       if (e.target === proModal) proModal.remove();
     });
 
-    const activateBtn = proModal.querySelector('#igProActivateBtn');
-    const keyInput = proModal.querySelector('#igProKeyInput');
-    const feedback = proModal.querySelector('#igProStatusFeedback');
+    if (isPro) {
+      const notifSwitch = proModal.querySelector('#igProNotifSwitch');
+      const testNotifBtn = proModal.querySelector('#igProTestNotifModalBtn');
+      const openBlockBtn = proModal.querySelector('#igProOpenBlockFromModalBtn');
 
-    activateBtn.addEventListener('click', async () => {
-      if (isPro) {
-        feedback.textContent = 'Você já possui o plano PRO ativo!';
-        feedback.style.color = '#34d399';
+      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+        chrome.storage.local.get(['ig_notifications_enabled'], (res) => {
+          if (notifSwitch) notifSwitch.checked = res.ig_notifications_enabled !== false;
+        });
+      }
+
+      if (notifSwitch) {
+        notifSwitch.addEventListener('change', (e) => {
+          chrome.storage.local.set({ ig_notifications_enabled: e.target.checked });
+        });
+      }
+
+      if (testNotifBtn) {
+        testNotifBtn.addEventListener('click', () => {
+          chrome.runtime.sendMessage({ action: 'test_notification' });
+          testNotifBtn.innerHTML = `<span>${SVGS.check}</span> <span>Enviado! ✓</span>`;
+          setTimeout(() => {
+            testNotifBtn.innerHTML = `<span>${SVGS.bell}</span> <span>Testar Alerta no Desktop</span>`;
+          }, 2000);
+        });
+      }
+
+      if (openBlockBtn) {
+        openBlockBtn.addEventListener('click', () => {
+          proModal.remove();
+          openBlockCheckerModal();
+        });
+      }
+    } else {
+      const activateBtn = proModal.querySelector('#igProActivateBtn');
+      const keyInput = proModal.querySelector('#igProKeyInput');
+      const feedback = proModal.querySelector('#igProStatusFeedback');
+
+      activateBtn.addEventListener('click', async () => {
+        const res = await activateLicense(keyInput.value);
+        if (res.success) {
+          feedback.textContent = res.message;
+          feedback.style.color = '#34d399';
+          setTimeout(() => {
+            proModal.remove();
+            openProModal();
+            renderResultsView();
+          }, 800);
+        } else {
+          feedback.textContent = res.message;
+          feedback.style.color = '#f87171';
+        }
+      });
+    }
+  }
+
+  // Modal Interativo de Verificação de Bloqueio por @
+  function openBlockCheckerModal(defaultUsername = '') {
+    const existing = document.getElementById('igBlockCheckerModal');
+    if (existing) existing.remove();
+
+    const modal = document.createElement('div');
+    modal.className = 'ig-unf-pro-overlay';
+    modal.id = 'igBlockCheckerModal';
+
+    modal.innerHTML = `
+      <div class="ig-unf-block-dialog" role="dialog" aria-modal="true" aria-labelledby="igBlockTitle">
+        <div class="ig-unf-block-dialog-header">
+          <div class="ig-unf-block-hero-badge">${SVGS.block}</div>
+          <div class="ig-unf-block-dialog-title" id="igBlockTitle">Verificador de Bloqueio</div>
+          <div class="ig-unf-block-dialog-subtitle">
+            Descubra se alguém te bloqueou, se desativou o perfil ou se continua com a conta normal.
+          </div>
+          <button class="ig-unf-close-btn ig-unf-block-close" id="igBlockCloseBtn" aria-label="Fechar">${SVGS.close}</button>
+        </div>
+
+        <div class="ig-unf-block-input-box">
+          <div class="ig-unf-block-input-group">
+            <span class="ig-unf-at-prefix">@</span>
+            <input type="text" class="ig-unf-block-input" id="igBlockUserInput" placeholder="usuario_do_instagram" value="${defaultUsername}">
+            <button class="ig-unf-block-submit-btn" id="igBlockSubmitBtn">
+              <span>${SVGS.search}</span>
+              <span>Verificar</span>
+            </button>
+          </div>
+          <div class="ig-unf-block-hint">
+            💡 Fazemos a prova real: comparamos o acesso autenticado da sua conta com o acesso público da web.
+          </div>
+        </div>
+
+        <div id="igBlockResultContainer" class="ig-unf-block-result-area" style="display: none;"></div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    modal.querySelector('#igBlockCloseBtn').addEventListener('click', () => modal.remove());
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) modal.remove();
+    });
+
+    const input = modal.querySelector('#igBlockUserInput');
+    const submitBtn = modal.querySelector('#igBlockSubmitBtn');
+    const resultBox = modal.querySelector('#igBlockResultContainer');
+
+    async function runCheck() {
+      const u = input.value.trim().replace(/^@/, '');
+      if (!u) {
+        input.focus();
         return;
       }
-      const res = await activateLicense(keyInput.value);
-      if (res.success) {
-        feedback.textContent = res.message;
-        feedback.style.color = '#34d399';
-        activateBtn.textContent = 'Ativo ✓';
-        activateBtn.disabled = true;
-        keyInput.disabled = true;
-        renderResultsView();
+
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = `<div class="ig-unf-spinner-sm"></div> <span>Testando...</span>`;
+      resultBox.style.display = 'block';
+      resultBox.innerHTML = `
+        <div class="ig-unf-block-loading">
+          <div class="ig-unf-spinner-sm"></div>
+          <span>Analisando perfil @${u} (Sessão Logada vs. Web Pública)...</span>
+        </div>
+      `;
+
+      const result = await checkUserBlockStatus(u);
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = `<span>${SVGS.search}</span> <span>Verificar</span>`;
+
+      if (result.status === 'blocked') {
+        resultBox.innerHTML = `
+          <div class="ig-unf-block-card is-blocked">
+            <div class="ig-unf-block-card-header">
+              <span class="ig-unf-block-card-icon">${SVGS.block}</span>
+              <strong class="ig-unf-block-card-title">🚨 TE BLOQUEOU!</strong>
+            </div>
+            <p class="ig-unf-block-card-desc">
+              A conta <strong>@${u}</strong> existe normalmente e está ativa na web pública, mas está completamente <strong>inacessível para o seu perfil</strong>.
+            </p>
+            <div class="ig-unf-block-card-footer">
+              <span class="ig-unf-status-pill blocked">Bloqueio Confirmado</span>
+              <a href="https://www.instagram.com/${u}/" target="_blank" rel="noopener" class="ig-unf-link-btn">
+                <span>Abrir Perfil</span>
+                <span>${SVGS.externalLink}</span>
+              </a>
+            </div>
+          </div>
+        `;
+      } else if (result.status === 'deactivated') {
+        resultBox.innerHTML = `
+          <div class="ig-unf-block-card is-deactivated">
+            <div class="ig-unf-block-card-header">
+              <span class="ig-unf-block-card-icon">${SVGS.userX}</span>
+              <strong class="ig-unf-block-card-title">⚪ Conta Desativada ou Inexistente</strong>
+            </div>
+            <p class="ig-unf-block-card-desc">
+              A conta <strong>@${u}</strong> não foi encontrada nem na web pública. A pessoa provavelmente desativou temporariamente, apagou a conta ou trocou de nome de usuário.
+            </p>
+            <div class="ig-unf-block-card-footer">
+              <span class="ig-unf-status-pill deactivated">Desativada / Deletada</span>
+            </div>
+          </div>
+        `;
+      } else if (result.status === 'unfollow') {
+        resultBox.innerHTML = `
+          <div class="ig-unf-block-card is-unfollow">
+            <div class="ig-unf-block-card-header">
+              <span class="ig-unf-block-card-icon">${SVGS.userCheck}</span>
+              <strong class="ig-unf-block-card-title">🟢 NÃO Te Bloqueou!</strong>
+            </div>
+            <p class="ig-unf-block-card-desc">
+              O perfil <strong>@${u}</strong> está acessível e visível normalmente para você. Se essa pessoa sumiu da sua lista, foi apenas um unfollow normal.
+            </p>
+            <div class="ig-unf-block-card-footer">
+              <span class="ig-unf-status-pill unfollow">Acesso Normal</span>
+              <a href="https://www.instagram.com/${u}/" target="_blank" rel="noopener" class="ig-unf-link-btn">
+                <span>Visitar Perfil</span>
+                <span>${SVGS.externalLink}</span>
+              </a>
+            </div>
+          </div>
+        `;
       } else {
-        feedback.textContent = res.message;
-        feedback.style.color = '#f87171';
+        resultBox.innerHTML = `
+          <div class="ig-unf-block-card is-deactivated">
+            <div class="ig-unf-block-card-header">
+              <span class="ig-unf-block-card-icon">${SVGS.alert}</span>
+              <strong class="ig-unf-block-card-title">Erro na Verificação</strong>
+            </div>
+            <p class="ig-unf-block-card-desc">${result.message || 'Verifique sua conexão ou tente novamente em alguns segundos.'}</p>
+          </div>
+        `;
       }
+    }
+
+    submitBtn.addEventListener('click', runCheck);
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') runCheck();
     });
+
+    if (defaultUsername) {
+      runCheck();
+    }
   }
 
   // Tela Inicial
@@ -601,6 +841,9 @@
         return;
       }
 
+      // Salva snapshot fiel com todos os seguidores antes do streaming da fase 2
+      const allFollowersMap = new Map(followersMap);
+
       // FASE 2: Streaming dos que você segue
       isPhase1 = false;
       let followingCursor = null;
@@ -669,8 +912,19 @@
 
       // FASE 3: Finalização e Comparação de Histórico de Unfollows
       scanResults.fans = Array.from(followersMap.values());
-      const lost = await computeRecentUnfollowers(followersMap);
+      const lost = await computeRecentUnfollowers(allFollowersMap);
       scanResults.recentUnfollowers = lost;
+
+      // Se for PRO e houver unfollows detectados, dispara notificação na área de trabalho
+      if (isPro && lost.length > 0) {
+        chrome.runtime.sendMessage({
+          action: 'trigger_desktop_notification',
+          title: '🔔 Instagram: Novos Unfollows Detectados',
+          message: lost.length === 1
+            ? `@${lost[0].username} deixou de seguir seu perfil.`
+            : `${lost.length} pessoas deixaram de te seguir desde a última checagem.`
+        });
+      }
 
       updateTabBadges();
       isScanning = false;
@@ -993,8 +1247,21 @@
     } else if (category === 'fans') {
       actionBtnHtml = `<button class="ig-unf-follow-btn" data-action="follow">Seguir de Volta</button>`;
     } else if (category === 'recentUnfollowers') {
+      let blockBadge = '';
+      if (user.blockStatus === 'blocked') {
+        blockBadge = `<span class="ig-unf-status-pill blocked" title="Conta pública ativa, mas inacessível para você!">${SVGS.block} Te Bloqueou</span>`;
+      } else if (user.blockStatus === 'deactivated') {
+        blockBadge = `<span class="ig-unf-status-pill deactivated" title="Conta não encontrada nem publicamente">${SVGS.userX} Desativada</span>`;
+      } else if (user.blockStatus === 'unfollow') {
+        blockBadge = `<span class="ig-unf-status-pill unfollow" title="Conta aberta normal">${SVGS.userCheck} Unfollow</span>`;
+      } else {
+        blockBadge = `<button class="ig-unf-check-pill-btn" data-action="checkBlock" data-username="${user.username}" title="Testar se esta conta te bloqueou ou se foi unfollow">${SVGS.search} Bloqueou?</button>`;
+      }
+
       actionBtnHtml = `
-        <span class="ig-unf-lost-badge">${SVGS.alert} Deixou de Seguir</span>
+        <div class="ig-unf-recent-status-box" id="blockStatusBox-${uid}">
+          ${blockBadge}
+        </div>
         <button class="ig-unf-unfollow-btn" data-action="unfollow">Deixar de Seguir</button>
       `;
     } else {
@@ -1048,6 +1315,27 @@
       starBtn.addEventListener('click', async () => {
         const nowVip = await toggleVipUser(user);
         renderUserListFull();
+      });
+    }
+
+    // Evento de Checagem Individual de Bloqueio
+    const checkBlockBtn = card.querySelector('[data-action="checkBlock"]');
+    if (checkBlockBtn) {
+      checkBlockBtn.addEventListener('click', async () => {
+        checkBlockBtn.disabled = true;
+        checkBlockBtn.innerHTML = `<div class="ig-unf-spinner-sm"></div> <span>Checando...</span>`;
+        const res = await checkUserBlockStatus(user.username);
+        user.blockStatus = res.status;
+        const box = card.querySelector(`#blockStatusBox-${uid}`);
+        if (box) {
+          if (res.status === 'blocked') {
+            box.innerHTML = `<span class="ig-unf-status-pill blocked" title="Conta ativa na web, mas inacessível para você!">${SVGS.block} Te Bloqueou</span>`;
+          } else if (res.status === 'deactivated') {
+            box.innerHTML = `<span class="ig-unf-status-pill deactivated" title="Conta não encontrada">${SVGS.userX} Desativada</span>`;
+          } else {
+            box.innerHTML = `<span class="ig-unf-status-pill unfollow" title="Conta normal">${SVGS.userCheck} Unfollow</span>`;
+          }
+        }
       });
     }
 
@@ -1245,6 +1533,56 @@
         </div>
       `;
       return;
+    }
+
+    // Ferramentas PRO de Bloqueio para a aba de Deixaram de Seguir
+    if (currentTab === 'recentUnfollowers' && isPro && filtered.length > 0) {
+      const topBar = document.createElement('div');
+      topBar.className = 'ig-unf-recent-tools-bar';
+      topBar.innerHTML = `
+        <div class="ig-unf-recent-tools-text">
+          <span>${SVGS.alert}</span>
+          <span>Diferencie quem te deu <strong>unfollow</strong> de quem te <strong>bloqueou</strong>:</span>
+        </div>
+        <div class="ig-unf-recent-tools-actions">
+          <button class="ig-unf-check-all-btn" id="igCheckAllRecentBlocksBtn">
+            <span>${SVGS.search}</span>
+            <span>Verificar Todos</span>
+          </button>
+          <button class="ig-unf-custom-check-btn" id="igOpenCustomBlockBtn">
+            <span>${SVGS.block}</span>
+            <span>Testar outro @</span>
+          </button>
+        </div>
+      `;
+      listElem.appendChild(topBar);
+
+      topBar.querySelector('#igOpenCustomBlockBtn').addEventListener('click', () => openBlockCheckerModal());
+      const checkAllBtn = topBar.querySelector('#igCheckAllRecentBlocksBtn');
+      checkAllBtn.addEventListener('click', async () => {
+        checkAllBtn.disabled = true;
+        checkAllBtn.innerHTML = `<div class="ig-unf-spinner-sm"></div> <span>Verificando...</span>`;
+
+        for (const u of filtered) {
+          if (!u.blockStatus) {
+            const res = await checkUserBlockStatus(u.username);
+            u.blockStatus = res.status;
+            const uid = String(u.pk || u.id || u.pk_id);
+            const box = listElem.querySelector(`#blockStatusBox-${uid}`);
+            if (box) {
+              if (res.status === 'blocked') {
+                box.innerHTML = `<span class="ig-unf-status-pill blocked" title="Conta ativa na web pública, mas inacessível para você!">${SVGS.block} Te Bloqueou</span>`;
+              } else if (res.status === 'deactivated') {
+                box.innerHTML = `<span class="ig-unf-status-pill deactivated" title="Conta não encontrada">${SVGS.userX} Desativada</span>`;
+              } else {
+                box.innerHTML = `<span class="ig-unf-status-pill unfollow" title="Conta normal">${SVGS.userCheck} Unfollow</span>`;
+              }
+            }
+            await sleep(350);
+          }
+        }
+        checkAllBtn.innerHTML = `${SVGS.check} <span>Todos Checados ✓</span>`;
+      });
     }
 
     const fragment = document.createDocumentFragment();

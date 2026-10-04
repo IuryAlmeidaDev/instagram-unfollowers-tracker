@@ -33,27 +33,49 @@ document.addEventListener('DOMContentLoaded', () => {
   const keyInput = document.getElementById('popupKeyInput');
   const activateBtn = document.getElementById('popupActivateBtn');
   const proMsg = document.getElementById('popupProMsg');
+  const notifSection = document.getElementById('popupNotifSection');
+  const notifToggle = document.getElementById('popupNotifToggle');
+  const testNotifBtn = document.getElementById('popupTestNotifBtn');
 
   function refreshProUi() {
     if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-      chrome.storage.local.get(['ig_is_pro'], (res) => {
+      chrome.storage.local.get(['ig_is_pro', 'ig_notifications_enabled'], (res) => {
         if (res.ig_is_pro) {
           proStatus.textContent = 'PRO ATIVO';
           proStatus.style.background = 'rgba(245, 158, 11, 0.2)';
           proStatus.style.color = '#fbbf24';
           proStatus.style.borderColor = 'rgba(245, 158, 11, 0.4)';
           proAction.innerHTML = '<div style="font-size: 11px; color: #34d399; font-weight: 600;">✓ Todos os recursos PRO desbloqueados</div>';
+          if (notifSection) notifSection.style.display = 'block';
+          if (notifToggle) notifToggle.checked = res.ig_notifications_enabled !== false;
         } else {
           proStatus.textContent = 'FREE';
           proStatus.style.background = '#27272a';
           proStatus.style.color = '#a1a1aa';
           proStatus.style.borderColor = '#3f3f46';
+          if (notifSection) notifSection.style.display = 'none';
         }
       });
     }
   }
 
   refreshProUi();
+
+  if (notifToggle) {
+    notifToggle.addEventListener('change', (e) => {
+      chrome.storage.local.set({ ig_notifications_enabled: e.target.checked });
+    });
+  }
+
+  if (testNotifBtn) {
+    testNotifBtn.addEventListener('click', () => {
+      chrome.runtime.sendMessage({ action: 'test_notification' });
+      testNotifBtn.textContent = 'Enviado! ✓';
+      setTimeout(() => {
+        testNotifBtn.textContent = 'Testar Notificação';
+      }, 2000);
+    });
+  }
 
   if (activateBtn) {
     activateBtn.addEventListener('click', () => {

@@ -1333,3 +1333,387 @@
   min-height: 18px;
 }
 
+/* Botão Fantasma no Cabeçalho */
+.ig-unf-ghost-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid #3f3f46;
+  color: #e4e4e7;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.ig-unf-ghost-btn:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
+}
+
+/* Barra de Ferramentas da Aba Deixaram de Seguir */
+.ig-unf-recent-tools-bar {
+  background: #18181b;
+  border: 1px solid #27272a;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+  color: #d4d4d8;
+}
+
+.ig-unf-recent-tools-text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #a1a1aa;
+}
+
+.ig-unf-recent-tools-text strong {
+  color: #f4f4f5;
+}
+
+.ig-unf-recent-tools-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.ig-unf-check-all-btn {
+  background: rgba(239, 68, 68, 0.16);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: opacity 0.15s ease;
+}
+
+.ig-unf-check-all-btn:hover {
+  opacity: 0.9;
+}
+
+.ig-unf-custom-check-btn {
+  background: #27272a;
+  color: #e4e4e7;
+  border: 1px solid #3f3f46;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.15s ease;
+}
+
+.ig-unf-custom-check-btn:hover {
+  background: #323238;
+}
+
+/* Pílulas de Status de Bloqueio e Unfollow */
+.ig-unf-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.ig-unf-status-pill.blocked {
+  background: rgba(239, 68, 68, 0.18);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.ig-unf-status-pill.deactivated {
+  background: rgba(113, 113, 122, 0.18);
+  color: #a1a1aa;
+  border: 1px solid rgba(113, 113, 122, 0.35);
+}
+
+.ig-unf-status-pill.unfollow {
+  background: rgba(16, 185, 129, 0.18);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.38);
+}
+
+.ig-unf-check-pill-btn {
+  background: #27272a;
+  border: 1px solid #3f3f46;
+  color: #e4e4e7;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+}
+
+.ig-unf-check-pill-btn:hover {
+  background: #323238;
+  border-color: #52525b;
+}
+
+/* Modal Verificador de Bloqueio */
+.ig-unf-block-dialog {
+  max-width: 460px;
+  width: 100%;
+  background: #121214;
+  border: 1px solid #27272a;
+  border-radius: 16px;
+  padding: 22px;
+  color: #f4f4f5;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.85);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.ig-unf-block-dialog-header {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 16px;
+  position: relative;
+}
+
+.ig-unf-block-close {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+}
+
+.ig-unf-block-hero-badge {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 10px;
+  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.35);
+}
+
+.ig-unf-block-dialog-title {
+  font-size: 17px;
+  font-weight: 800;
+  color: #ffffff;
+  margin-bottom: 4px;
+}
+
+.ig-unf-block-dialog-subtitle {
+  font-size: 12px;
+  color: #a1a1aa;
+  line-height: 1.45;
+  max-width: 360px;
+}
+
+.ig-unf-block-input-box {
+  background: #18181b;
+  border: 1px solid #27272a;
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 14px;
+}
+
+.ig-unf-block-input-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.ig-unf-at-prefix {
+  color: #71717a;
+  font-weight: 700;
+  font-size: 14px;
+  padding-left: 4px;
+}
+
+.ig-unf-block-input {
+  flex: 1;
+  background: #27272a;
+  border: 1px solid #3f3f46;
+  border-radius: 6px;
+  color: #ffffff;
+  padding: 8px 10px;
+  font-size: 12.5px;
+  outline: none;
+  font-family: inherit;
+}
+
+.ig-unf-block-input:focus {
+  border-color: #ef4444;
+}
+
+.ig-unf-block-submit-btn {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  border: none;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 12px;
+  border-radius: 6px;
+  padding: 8px 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: opacity 0.15s ease;
+}
+
+.ig-unf-block-submit-btn:hover {
+  opacity: 0.94;
+}
+
+.ig-unf-block-hint {
+  font-size: 11px;
+  color: #a1a1aa;
+  line-height: 1.35;
+}
+
+.ig-unf-block-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px;
+  font-size: 12px;
+  color: #a1a1aa;
+}
+
+.ig-unf-block-card {
+  border-radius: 10px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ig-unf-block-card.is-blocked {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+}
+
+.ig-unf-block-card.is-deactivated {
+  background: rgba(113, 113, 122, 0.12);
+  border: 1px solid rgba(113, 113, 122, 0.3);
+}
+
+.ig-unf-block-card.is-unfollow {
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.ig-unf-block-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ig-unf-block-card.is-blocked .ig-unf-block-card-title {
+  color: #f87171;
+}
+
+.ig-unf-block-card.is-deactivated .ig-unf-block-card-title {
+  color: #a1a1aa;
+}
+
+.ig-unf-block-card.is-unfollow .ig-unf-block-card-title {
+  color: #34d399;
+}
+
+.ig-unf-block-card-desc {
+  font-size: 12px;
+  color: #d4d4d8;
+  line-height: 1.45;
+}
+
+.ig-unf-block-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+}
+
+/* Ícones e seções PRO adicionais */
+.ig-unf-pro-feat-icon.block {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+}
+
+.ig-unf-pro-feat-icon.bell {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+}
+
+.ig-unf-pro-settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ig-unf-pro-toggle-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 600;
+  color: #e4e4e7;
+  cursor: pointer;
+  user-select: none;
+}
+
+.ig-unf-pro-actions-row {
+  display: flex;
+  gap: 8px;
+}
+
+.ig-unf-pro-secondary-btn {
+  flex: 1;
+  background: #27272a;
+  border: 1px solid #3f3f46;
+  color: #e4e4e7;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.ig-unf-pro-secondary-btn:hover {
+  background: #323238;
+  border-color: #52525b;
+}
+
+
