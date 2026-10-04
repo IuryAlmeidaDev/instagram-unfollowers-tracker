@@ -129,7 +129,86 @@ chrome.notifications.onClicked.addListener((notifId) => {
   chrome.notifications.clear(notifId);
 });
 
-// Verifica se uma conta existe publicamente na web deslogada
+// Analisador determinístico do HTML do Instagram (Web Pública / Deslogada)
+function parseInstagramProfileHtml(html, username) {
+  if (!html || typeof html !== 'string') {
+    return { isProfile: false, is404: true, details: null };
+  }
+  const clean = (username || '').toLowerCase();
+
+  // 1. Verificações de 404 / Página Inacessível
+  // Importante: Casar padrões exatos do SSR do Instagram para evitar falsos positivos
+  const is404 = html.includes('"pageID":"httpErrorPage"') ||
+                html.includes('"canonicalRouteName":"comet.igweb.PolarisErrorRoute"') ||
+                html.includes('"show_lox_redesigned_404_page":true') ||
+                html.includes('Esta página não está disponível') ||
+                html.includes("Sorry, this page isn't available");
+
+  // 2. Indicadores positivos de Perfil Real
+  const isProfilePage = html.includes('"pageID":"profilePage"');
+  const hasOgProfile = html.includes('property="og:type" content="profile"') ||
+                       html.includes('content="profile" property="og:type"');
+
+  const titleMatch = html.match(/<title>(.*?)<\/title>/i);
+  const title = titleMatch ? titleMatch[1] : '';
+  const titleHasUser = clean && (
+    title.toLowerCase().includes(`(@${clean})`) ||
+    title.toLowerCase().includes(`(&#064;${clean})`) ||
+    (title.toLowerCase().includes(clean) && !title.toLowerCase().includes('page not found') && !title.toLowerCase().includes('não encontrada'))
+  );
+
+  const ogUrlMatch = html.match(/<meta\s+property="og:url"\s+content="([^"]+)"/i);
+  const ogUrl = ogUrlMatch ? ogUrlMatch[1] : '';
+  const ogUrlMatches = clean && ogUrl.toLowerCase().includes('/' + clean);
+
+  const hasOgTitle = clean && html.includes('property="og:title"') &&
+                     (html.toLowerCase().includes(`(@${clean})`) ||
+                      html.toLowerCase().includes(`(&#064;${clean})`) ||
+                      html.toLowerCase().includes(clean));
+
+  const isProfile = !is404 && (isProfilePage || hasOgProfile || titleHasUser || ogUrlMatches || hasOgTitle);
+
+  let details = null;
+  if (isProfile) {
+    const descMatch = html.match(/<meta\s+property="og:description"\s+content="([^"]+)"/i) ||
+                      html.match(/<meta\s+name="description"\s+content="([^"]+)"/i);
+    const desc = descMatch ? descMatch[1] : '';
+    const ogImgMatch = html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i);
+    const avatar = ogImgMatch ? ogImgMatch[1] : '';
+
+    let followers = undefined;
+    let following = undefined;
+    let posts = undefined;
+
+    if (desc) {
+      const statsPart = desc.split('-')[0] || '';
+      const fMatch = statsPart.match(/([\d\.,\sKMkmb]+)\s+(?:Followers|Seguidores)/i);
+      if (fMatch) followers = fMatch[1].replace(/^[^\d]+/, '').trim();
+
+      const folMatch = statsPart.match(/([\d\.,\sKMkmb]+)\s+(?:Following|Seguindo)/i);
+      if (folMatch) following = folMatch[1].replace(/^[^\d]+/, '').trim();
+
+      const pMatch = statsPart.match(/([\d\.,\sKMkmb]+)\s+(?:Posts|Publicações)/i);
+      if (pMatch) posts = pMatch[1].replace(/^[^\d]+/, '').trim();
+    }
+
+    const isPrivate = html.includes('Este perfil é privado') ||
+                      html.includes('This account is private') ||
+                      html.includes('"is_private":true');
+
+    details = {
+      followers,
+      following,
+      posts,
+      avatar,
+      isPrivate
+    };
+  }
+
+  return { isProfile, is404, details };
+}
+
+// Verifica se uma conta existe publicamente na web deslogada (sem cookies de sessão)
 async function checkPublicAccountExistence(username) {
   const clean = (username || '').replace(/^@/, '').trim().toLowerCase();
   if (!clean) return { exists: false };
@@ -139,26 +218,15 @@ async function checkPublicAccountExistence(username) {
       credentials: 'omit',
       cache: 'no-store',
       headers: {
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
       }
     });
 
     const html = await res.text();
+    const parsed = parseInstagramProfileHtml(html, clean);
 
-    const isProfilePage = html.includes('PolarisLoggedOutDesktopWWWProfileRoute') ||
-                          html.includes('profilePage') ||
-                          html.includes(`@${clean}) • Instagram`) ||
-                          html.includes(`@${clean}) \u2022 Instagram`);
-
-    const isErrorPage = html.includes('PolarisErrorRoute') ||
-                        html.includes('httpErrorPage') ||
-                        html.includes('show_lox_redesigned_404_page') ||
-                        html.includes('Esta página não está disponível') ||
-                        html.includes("Sorry, this page isn't available");
-
-    if (isProfilePage && !isErrorPage) {
-      return { exists: true };
+    if (parsed.isProfile && !parsed.is404) {
+      return { exists: true, details: parsed.details };
     }
 
     return { exists: false };

@@ -63,6 +63,92 @@
     return uid;
   }
 
+  // Analisador determinístico do HTML do Instagram (Sessão Logada e Pública)
+  function parseInstagramProfileHtml(html, username) {
+    if (!html || typeof html !== 'string') {
+      return { isProfile: false, is404: true, details: null };
+    }
+    const clean = (username || '').toLowerCase();
+
+    // 1. Verificações de 404 / Página Inacessível
+    // ATENÇÃO: Casamos padrões exatos do SSR do Instagram para evitar falsos positivos
+    const is404 = html.includes('"pageID":"httpErrorPage"') ||
+                  html.includes('"canonicalRouteName":"comet.igweb.PolarisErrorRoute"') ||
+                  html.includes('"show_lox_redesigned_404_page":true') ||
+                  html.includes('Esta página não está disponível') ||
+                  html.includes("Sorry, this page isn't available");
+
+    // 2. Indicadores positivos de Perfil Real
+    const isProfilePage = html.includes('"pageID":"profilePage"');
+    const hasOgProfile = html.includes('property="og:type" content="profile"') ||
+                         html.includes('content="profile" property="og:type"');
+
+    const titleMatch = html.match(/<title>(.*?)<\/title>/i);
+    const title = titleMatch ? titleMatch[1] : '';
+    const titleHasUser = clean && (
+      title.toLowerCase().includes(`(@${clean})`) ||
+      title.toLowerCase().includes(`(&#064;${clean})`) ||
+      (title.toLowerCase().includes(clean) && !title.toLowerCase().includes('page not found') && !title.toLowerCase().includes('não encontrada'))
+    );
+
+    const ogUrlMatch = html.match(/<meta\s+property="og:url"\s+content="([^"]+)"/i);
+    const ogUrl = ogUrlMatch ? ogUrlMatch[1] : '';
+    const ogUrlMatches = clean && ogUrl.toLowerCase().includes('/' + clean);
+
+    const hasOgTitle = clean && html.includes('property="og:title"') &&
+                       (html.toLowerCase().includes(`(@${clean})`) ||
+                        html.toLowerCase().includes(`(&#064;${clean})`) ||
+                        html.toLowerCase().includes(clean));
+
+    const isProfile = !is404 && (isProfilePage || hasOgProfile || titleHasUser || ogUrlMatches || hasOgTitle);
+
+    // 3. Extração de estatísticas e metadados
+    let details = null;
+    if (isProfile) {
+      const descMatch = html.match(/<meta\s+property="og:description"\s+content="([^"]+)"/i) ||
+                        html.match(/<meta\s+name="description"\s+content="([^"]+)"/i);
+      const desc = descMatch ? descMatch[1] : '';
+      const ogImgMatch = html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i);
+      const avatar = ogImgMatch ? ogImgMatch[1] : '';
+
+      let followers = undefined;
+      let following = undefined;
+      let posts = undefined;
+
+      if (desc) {
+        const statsPart = desc.split('-')[0] || '';
+        const fMatch = statsPart.match(/([\d\.,\sKMkmb]+)\s+(?:Followers|Seguidores)/i);
+        if (fMatch) followers = fMatch[1].replace(/^[^\d]+/, '').trim();
+
+        const folMatch = statsPart.match(/([\d\.,\sKMkmb]+)\s+(?:Following|Seguindo)/i);
+        if (folMatch) following = folMatch[1].replace(/^[^\d]+/, '').trim();
+
+        const pMatch = statsPart.match(/([\d\.,\sKMkmb]+)\s+(?:Posts|Publicações)/i);
+        if (pMatch) posts = pMatch[1].replace(/^[^\d]+/, '').trim();
+      }
+
+      const isPrivate = html.includes('Este perfil é privado') ||
+                        html.includes('This account is private') ||
+                        html.includes('"is_private":true');
+
+      let fullName = '';
+      if (title && title.includes('(')) {
+        fullName = title.split('(')[0].trim();
+      }
+
+      details = {
+        fullName: fullName || undefined,
+        followers,
+        following,
+        posts,
+        avatar,
+        isPrivate
+      };
+    }
+
+    return { isProfile, is404, details };
+  }
+
   // Verifica com a sessão ativa se o usuário te bloqueou, desativou ou se está normal
   async function checkUserBlockStatus(username) {
     const clean = (username || '').replace(/^@/, '').trim().toLowerCase();
@@ -71,33 +157,26 @@
     }
 
     try {
-      const csrf = getCsrfToken();
-      const headers = {
-        'X-IG-App-ID': '936619743392459',
-        'X-Requested-With': 'XMLHttpRequest'
-      };
-      if (csrf) headers['X-CSRFToken'] = csrf;
-
-      // 1. TESTE LOGADO: Tenta consultar a API de perfil com a sessão ativa
-      let loggedInUser = null;
+      // 1. TESTE LOGADO: Tenta consultar a página /{clean}/ com a sessão ativa
+      let loggedInProfile = null;
       try {
-        const res = await fetch(`/api/v1/users/web_profile_info/?username=${encodeURIComponent(clean)}`, {
-          headers: headers,
+        const pageRes = await fetch(`/${encodeURIComponent(clean)}/`, {
           credentials: 'include'
         });
 
-        if (res.ok) {
-          const json = await res.json();
-          if (json?.data?.user?.username) {
-            loggedInUser = json.data.user;
+        if (pageRes.ok) {
+          const pageHtml = await pageRes.text();
+          const parsed = parseInstagramProfileHtml(pageHtml, clean);
+          if (parsed.isProfile && !parsed.is404) {
+            loggedInProfile = parsed;
           }
         }
       } catch (e) {
-        console.warn('Erro ao consultar web_profile_info:', e);
+        console.warn('Erro ao consultar página HTML logada:', e);
       }
 
-      // Se a API retornou o perfil com sucesso, você NÃO está bloqueado!
-      if (loggedInUser) {
+      // Se a página carregou normalmente na sua conta: VOCÊ NÃO ESTÁ BLOQUEADO!
+      if (loggedInProfile) {
         return {
           status: 'unfollow',
           username: clean,
@@ -105,18 +184,19 @@
           message: `@${clean} está com o perfil ativo e visível normalmente para você.`,
           isBlocked: false,
           isDeactivated: false,
-          details: {
-            fullName: loggedInUser.full_name || '',
-            isPrivate: !!loggedInUser.is_private,
-            followers: loggedInUser.edge_followed_by?.count,
-            posts: loggedInUser.edge_owner_to_timeline_media?.count,
-            avatar: loggedInUser.profile_pic_url
-          }
+          details: loggedInProfile.details
         };
       }
 
-      // 1B. FALLBACK LOGADO: Mecanismo de busca do Instagram com a sessão do usuário
+      // 1B. FALLBACK LOGADO: Se a requisição HTML falhou ou teve oscilação, tenta topsearch
       try {
+        const csrf = getCsrfToken();
+        const headers = {
+          'X-IG-App-ID': '936619743392459',
+          'X-Requested-With': 'XMLHttpRequest'
+        };
+        if (csrf) headers['X-CSRFToken'] = csrf;
+
         const searchRes = await fetch(`/api/v1/web/search/topsearch/?context=blended&query=${encodeURIComponent(clean)}`, {
           headers: headers,
           credentials: 'include'
@@ -146,62 +226,33 @@
         console.warn('Erro ao consultar topsearch:', e);
       }
 
-      // 1C. FALLBACK LOGADO: Requisição HTML de /{username}/ com cookies da sessão
-      let loggedInPageAccessible = false;
-      try {
-        const pageRes = await fetch(`/${encodeURIComponent(clean)}/`, {
-          credentials: 'include'
-        });
-
-        if (pageRes.ok) {
-          const pageHtml = await pageRes.text();
-          const isErrorPage = pageHtml.includes('PolarisErrorRoute') ||
-                              pageHtml.includes('httpErrorPage') ||
-                              pageHtml.includes('show_lox_redesigned_404_page') ||
-                              pageHtml.includes('Esta página não está disponível') ||
-                              pageHtml.includes("Sorry, this page isn't available");
-
-          if (!isErrorPage) {
-            loggedInPageAccessible = true;
-          }
-        }
-      } catch (e) {}
-
-      if (loggedInPageAccessible) {
-        return {
-          status: 'unfollow',
-          username: clean,
-          title: '🟢 NÃO Te Bloqueou!',
-          message: `A página de @${clean} carregou normalmente na sua conta. O perfil não te bloqueou.`,
-          isBlocked: false,
-          isDeactivated: false
-        };
-      }
-
       // 2. SE O USUÁRIO NÃO É ACESSÍVEL NA SUA SESSÃO LOGADA:
       // Testa se o perfil existe na web pública deslogada (sem cookies)
-      let publicExists = false;
+      let publicResult = null;
       try {
-        const publicRes = await new Promise((resolve) => {
+        publicResult = await new Promise((resolve) => {
           chrome.runtime.sendMessage({
             action: 'check_public_existence',
             username: clean
           }, resolve);
         });
-        publicExists = !!(publicRes && publicRes.exists);
       } catch (e) {
-        publicExists = false;
+        publicResult = null;
       }
 
+      const publicExists = !!(publicResult && publicResult.exists);
+
       if (publicExists) {
-        // Existe para o público geral, mas é inacessível para o usuário logado = BLOQUEIO REAL
+        // Existe para o público geral na internet, mas é inacessível para a sua conta logada!
+        // PROVA DETERMINÍSTICA DE BLOQUEIO!
         return {
           status: 'blocked',
           username: clean,
           title: '🚨 TE BLOQUEOU!',
           message: `A conta @${clean} está ativa no Instagram, mas foi bloqueada especificamente para o seu perfil.`,
           isBlocked: true,
-          isDeactivated: false
+          isDeactivated: false,
+          details: publicResult.details
         };
       } else {
         // Não existe nem para você e nem na web pública = CONTA DESATIVADA OU EXCLUÍDA
@@ -209,7 +260,7 @@
           status: 'deactivated',
           username: clean,
           title: '⚪ Conta Desativada ou Inexistente',
-          message: `A conta @${clean} não foi encontrada. O usuário provavelmente desativou o Instagram, trocou de @ ou o perfil não existe.`,
+          message: `A conta @${clean} não foi encontrada nem na web pública. A pessoa provavelmente desativou temporariamente, apagou a conta ou trocou de nome de usuário.`,
           isBlocked: false,
           isDeactivated: true
         };
@@ -678,6 +729,7 @@
       submitBtn.innerHTML = `<span>${SVGS.search}</span> <span>Verificar</span>`;
 
       if (result.status === 'blocked') {
+        const d = result.details || {};
         resultBox.innerHTML = `
           <div class="ig-unf-block-card is-blocked">
             <div class="ig-unf-block-card-header">
@@ -686,6 +738,7 @@
             </div>
             <p class="ig-unf-block-card-desc">
               A conta <strong>@${u}</strong> existe normalmente e está ativa na web pública, mas está completamente <strong>inacessível para o seu perfil</strong>.
+              ${d.followers !== undefined ? `<br><span style="color: #fda4af; font-size: 11.5px;">A conta possui <strong>${d.followers}</strong> seguidores ${d.isPrivate ? '• 🔒 Perfil Privado' : '• 🌐 Perfil Público'}.</span>` : ''}
             </p>
             <div class="ig-unf-block-card-footer">
               <span class="ig-unf-status-pill blocked">Bloqueio Confirmado</span>
@@ -721,8 +774,8 @@
             </div>
             <p class="ig-unf-block-card-desc">
               O perfil <strong>@${u}</strong> está <strong>acessível e visível normalmente</strong> para a sua conta.
-              ${d.fullName ? `<br><span style="color: #a1a1aa; font-size: 11.5px;">Nome: <strong>${d.fullName}</strong> ${d.isPrivate ? '• 🔒 Perfil Privado' : '• 🌐 Perfil Público'}</span>` : ''}
-              ${d.followers !== undefined ? `<br><span style="color: #a1a1aa; font-size: 11.5px;">Seguidores: <strong>${d.followers.toLocaleString()}</strong> • Posts: <strong>${(d.posts || 0).toLocaleString()}</strong></span>` : ''}
+              ${d.fullName ? `<br><span style="color: #a1a1aa; font-size: 11.5px;">Nome: <strong>${d.fullName}</strong> ${d.isPrivate ? '• 🔒 Perfil Privado' : '• 🌐 Perfil Público'}</span>` : (d.isPrivate !== undefined ? `<br><span style="color: #a1a1aa; font-size: 11.5px;">${d.isPrivate ? '🔒 Perfil Privado' : '🌐 Perfil Público'}</span>` : '')}
+              ${d.followers !== undefined ? `<br><span style="color: #a1a1aa; font-size: 11.5px;">Seguidores: <strong>${d.followers}</strong> ${d.posts !== undefined ? `• Posts: <strong>${d.posts}</strong>` : ''}</span>` : ''}
             </p>
             <div class="ig-unf-block-card-footer">
               <span class="ig-unf-status-pill unfollow">Acesso Normal</span>
