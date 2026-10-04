@@ -195,7 +195,7 @@
 .ig-unf-modal {
   position: relative;
   width: 100%;
-  max-width: 680px;
+  max-width: 700px;
   height: 85vh;
   background: var(--ig-bg-base);
   border: 1px solid var(--ig-border-subtle);
@@ -416,6 +416,8 @@
   margin-bottom: 14px;
   border-bottom: 1px solid var(--ig-border-subtle);
   padding-bottom: 10px;
+  padding-right: 14px;
+  box-sizing: border-box;
   overflow-x: auto;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
@@ -427,19 +429,20 @@
 
 .ig-unf-tab-btn {
   background: transparent;
-  border: none;
+  border: 1px solid transparent;
   color: var(--ig-text-secondary);
-  padding: 7px 11px;
-  font-size: 12.5px;
+  padding: 6px 9px;
+  font-size: 12px;
   font-weight: 600;
   border-radius: 8px;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
   display: inline-flex;
   align-items: center;
   gap: 6px;
   white-space: nowrap;
   flex-shrink: 0;
+  box-sizing: border-box;
 }
 
 .ig-unf-tab-btn:hover {
@@ -449,6 +452,7 @@
 
 .ig-unf-tab-btn.active {
   background: var(--ig-border-subtle);
+  border-color: var(--ig-border-default);
   color: #ffffff;
 }
 
@@ -458,16 +462,18 @@
   font-size: 11.5px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  padding: 1px 7px;
+  padding: 1px 6px;
   border-radius: 9px;
   min-width: 18px;
   height: 18px;
+  box-sizing: border-box;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
-.ig-unf-tab-btn.active .ig-unf-tab-badge {
+.ig-unf-tab-btn.active:not(.vip-tab):not(.alert-tab) .ig-unf-tab-badge {
   background: #fd1d1d;
 }
 
@@ -514,7 +520,8 @@
 }
 
 .ig-unf-search-input:focus {
-  border-color: #fd1d1d;
+  border-color: rgba(225, 48, 108, 0.6);
+  box-shadow: 0 0 0 2px rgba(225, 48, 108, 0.15);
 }
 
 /* Botão de Alternar Modo de Seleção em Lote na Toolbar */
@@ -1203,12 +1210,20 @@
 .ig-unf-tab-btn.alert-tab.active {
   background: rgba(239, 68, 68, 0.18);
   color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+.ig-unf-tab-btn.alert-tab .ig-unf-tab-badge,
+.ig-unf-tab-badge.alert-badge {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
   border: 1px solid rgba(239, 68, 68, 0.35);
 }
 
-.ig-unf-tab-badge.alert-badge {
-  background: #ef4444;
-  color: #ffffff;
+.ig-unf-tab-btn.alert-tab.active .ig-unf-tab-badge {
+  background: #ef4444 !important;
+  color: #ffffff !important;
+  border-color: #ef4444 !important;
 }
 
 .ig-unf-tab-btn.vip-tab {
@@ -1223,13 +1238,22 @@
 .ig-unf-tab-btn.vip-tab.active {
   background: rgba(245, 158, 11, 0.18);
   color: #fde68a;
-  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-color: rgba(245, 158, 11, 0.4);
 }
 
+.ig-unf-tab-btn.vip-tab .ig-unf-tab-badge,
 .ig-unf-tab-badge.vip-badge {
-  background: #d97706;
-  color: #ffffff;
+  background: rgba(245, 158, 11, 0.22);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.45);
 }
+
+.ig-unf-tab-btn.vip-tab.active .ig-unf-tab-badge {
+  background: #f59e0b !important;
+  color: #121214 !important;
+  border-color: #f59e0b !important;
+}
+
 
 /* Card Elements (Checkbox, Star, VIP Shield, Lost Badge) */
 .ig-unf-card-left {

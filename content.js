@@ -2417,9 +2417,9 @@
           <span>Mútuos</span>
           <span class="ig-unf-tab-badge">${scanResults.mutual.length}</span>
         </button>
-        <button class="ig-unf-tab-btn alert-tab ${currentTab === 'recentUnfollowers' ? 'active' : ''}" data-tab="recentUnfollowers" role="tab">
+        <button class="ig-unf-tab-btn alert-tab ${currentTab === 'recentUnfollowers' ? 'active' : ''}" data-tab="recentUnfollowers" role="tab" title="Pessoas que deixaram de seguir o seu perfil">
           ${SVGS.alert}
-          <span>Deixaram de Seguir</span>
+          <span>Unfollows</span>
           <span class="ig-unf-tab-badge alert-badge">${scanResults.recentUnfollowers.length}</span>
         </button>
         <button class="ig-unf-tab-btn vip-tab ${currentTab === 'vip' ? 'active' : ''}" data-tab="vip" role="tab">
