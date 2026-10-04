@@ -1633,7 +1633,101 @@
 .ig-unf-block-card-header {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
+}
+
+.ig-unf-block-avatar-wrap {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #27272a;
+}
+
+.ig-unf-block-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #27272a;
+  display: block;
+  transition: opacity 0.2s ease;
+}
+
+.ig-unf-block-card.is-blocked .ig-unf-block-avatar {
+  border: 2px solid #ef4444;
+  box-shadow: 0 0 14px rgba(239, 68, 68, 0.4);
+}
+
+.ig-unf-block-card.is-unfollow .ig-unf-block-avatar {
+  border: 2px solid #10b981;
+  box-shadow: 0 0 14px rgba(16, 185, 129, 0.4);
+}
+
+.ig-unf-block-avatar-wrap.placeholder {
+  border: 1.5px dashed rgba(255, 255, 255, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #a1a1aa;
+}
+
+.ig-unf-block-avatar-wrap.placeholder svg {
+  width: 22px;
+  height: 22px;
+}
+
+.ig-unf-block-avatar-badge {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #18181b;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+}
+
+.ig-unf-block-avatar-badge svg {
+  width: 10px;
+  height: 10px;
+}
+
+.ig-unf-block-avatar-badge.is-blocked {
+  background: #ef4444;
+  color: #fff;
+}
+
+.ig-unf-block-avatar-badge.is-unfollow {
+  background: #10b981;
+  color: #fff;
+}
+
+.ig-unf-block-header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.ig-unf-block-card-title {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.ig-unf-block-user-handle {
+  font-size: 12px;
+  font-weight: 500;
+  color: #a1a1aa;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .ig-unf-block-card.is-blocked .ig-unf-block-card-title {
@@ -1654,11 +1748,45 @@
   line-height: 1.45;
 }
 
+.ig-unf-block-meta-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.ig-unf-meta-chip {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #d4d4d8;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ig-unf-meta-chip.lock {
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.25);
+  color: #fbbf24;
+}
+
+.ig-unf-meta-chip.pub {
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(59, 130, 246, 0.25);
+  color: #60a5fa;
+}
+
 .ig-unf-block-card-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 4px;
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 /* Ícones e seções PRO adicionais */

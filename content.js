@@ -733,13 +733,29 @@
         resultBox.innerHTML = `
           <div class="ig-unf-block-card is-blocked">
             <div class="ig-unf-block-card-header">
-              <span class="ig-unf-block-card-icon">${SVGS.block}</span>
-              <strong class="ig-unf-block-card-title">🚨 TE BLOQUEOU!</strong>
+              <div class="ig-unf-block-avatar-wrap">
+                ${d.avatar ? `
+                  <img src="${d.avatar}" alt="@${u}" class="ig-unf-block-avatar" referrerpolicy="no-referrer" onerror="this.style.opacity='0'">
+                  <span class="ig-unf-block-avatar-badge is-blocked">${SVGS.block}</span>
+                ` : `
+                  <div class="ig-unf-block-avatar-wrap placeholder">${SVGS.block}</div>
+                `}
+              </div>
+              <div class="ig-unf-block-header-text">
+                <strong class="ig-unf-block-card-title">🚨 TE BLOQUEOU!</strong>
+                <span class="ig-unf-block-user-handle">@${u}</span>
+              </div>
             </div>
             <p class="ig-unf-block-card-desc">
               A conta <strong>@${u}</strong> existe normalmente e está ativa na web pública, mas está completamente <strong>inacessível para o seu perfil</strong>.
-              ${d.followers !== undefined ? `<br><span style="color: #fda4af; font-size: 11.5px;">A conta possui <strong>${d.followers}</strong> seguidores ${d.isPrivate ? '• 🔒 Perfil Privado' : '• 🌐 Perfil Público'}.</span>` : ''}
             </p>
+            ${(d.followers !== undefined || d.isPrivate !== undefined) ? `
+              <div class="ig-unf-block-meta-chips">
+                ${d.isPrivate ? '<span class="ig-unf-meta-chip lock">🔒 Perfil Privado</span>' : '<span class="ig-unf-meta-chip pub">🌐 Perfil Público</span>'}
+                ${d.followers !== undefined ? `<span class="ig-unf-meta-chip">👥 ${d.followers} seguidores</span>` : ''}
+                ${d.posts !== undefined ? `<span class="ig-unf-meta-chip">📸 ${d.posts} posts</span>` : ''}
+              </div>
+            ` : ''}
             <div class="ig-unf-block-card-footer">
               <span class="ig-unf-status-pill blocked">Bloqueio Confirmado</span>
               <a href="https://www.instagram.com/${u}/" target="_blank" rel="noopener" class="ig-unf-link-btn">
@@ -753,8 +769,13 @@
         resultBox.innerHTML = `
           <div class="ig-unf-block-card is-deactivated">
             <div class="ig-unf-block-card-header">
-              <span class="ig-unf-block-card-icon">${SVGS.userX}</span>
-              <strong class="ig-unf-block-card-title">⚪ Conta Desativada ou Inexistente</strong>
+              <div class="ig-unf-block-avatar-wrap placeholder">
+                <span>${SVGS.userX}</span>
+              </div>
+              <div class="ig-unf-block-header-text">
+                <strong class="ig-unf-block-card-title">⚪ Conta Desativada ou Inexistente</strong>
+                <span class="ig-unf-block-user-handle">@${u}</span>
+              </div>
             </div>
             <p class="ig-unf-block-card-desc">
               A conta <strong>@${u}</strong> não foi encontrada nem na web pública. A pessoa provavelmente desativou temporariamente, apagou a conta ou trocou de nome de usuário.
@@ -769,14 +790,29 @@
         resultBox.innerHTML = `
           <div class="ig-unf-block-card is-unfollow">
             <div class="ig-unf-block-card-header">
-              <span class="ig-unf-block-card-icon">${SVGS.userCheck}</span>
-              <strong class="ig-unf-block-card-title">🟢 NÃO Te Bloqueou!</strong>
+              <div class="ig-unf-block-avatar-wrap">
+                ${d.avatar ? `
+                  <img src="${d.avatar}" alt="@${u}" class="ig-unf-block-avatar" referrerpolicy="no-referrer" onerror="this.style.opacity='0'">
+                  <span class="ig-unf-block-avatar-badge is-unfollow">${SVGS.userCheck}</span>
+                ` : `
+                  <div class="ig-unf-block-avatar-wrap placeholder">${SVGS.userCheck}</div>
+                `}
+              </div>
+              <div class="ig-unf-block-header-text">
+                <strong class="ig-unf-block-card-title">🟢 NÃO Te Bloqueou!</strong>
+                <span class="ig-unf-block-user-handle">${d.fullName ? `${d.fullName} (@${u})` : `@${u}`}</span>
+              </div>
             </div>
             <p class="ig-unf-block-card-desc">
-              O perfil <strong>@${u}</strong> está <strong>acessível e visível normalmente</strong> para a sua conta.
-              ${d.fullName ? `<br><span style="color: #a1a1aa; font-size: 11.5px;">Nome: <strong>${d.fullName}</strong> ${d.isPrivate ? '• 🔒 Perfil Privado' : '• 🌐 Perfil Público'}</span>` : (d.isPrivate !== undefined ? `<br><span style="color: #a1a1aa; font-size: 11.5px;">${d.isPrivate ? '🔒 Perfil Privado' : '🌐 Perfil Público'}</span>` : '')}
-              ${d.followers !== undefined ? `<br><span style="color: #a1a1aa; font-size: 11.5px;">Seguidores: <strong>${d.followers}</strong> ${d.posts !== undefined ? `• Posts: <strong>${d.posts}</strong>` : ''}</span>` : ''}
+              O perfil <strong>@${u}</strong> está <strong>acessível e visível normalmente</strong> para a sua conta. Se essa pessoa sumiu da sua lista de seguidores, foi apenas um unfollow normal.
             </p>
+            ${(d.followers !== undefined || d.isPrivate !== undefined) ? `
+              <div class="ig-unf-block-meta-chips">
+                ${d.isPrivate ? '<span class="ig-unf-meta-chip lock">🔒 Perfil Privado</span>' : '<span class="ig-unf-meta-chip pub">🌐 Perfil Público</span>'}
+                ${d.followers !== undefined ? `<span class="ig-unf-meta-chip">👥 ${d.followers} seguidores</span>` : ''}
+                ${d.posts !== undefined ? `<span class="ig-unf-meta-chip">📸 ${d.posts} posts</span>` : ''}
+              </div>
+            ` : ''}
             <div class="ig-unf-block-card-footer">
               <span class="ig-unf-status-pill unfollow">Acesso Normal</span>
               <a href="https://www.instagram.com/${u}/" target="_blank" rel="noopener" class="ig-unf-link-btn">
