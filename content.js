@@ -2412,7 +2412,7 @@
   const executeUnfollow = unfollowUser;
 
   // Ação Individual de Seguir de Volta
-  async function handleFollow(targetUserId, btn) {
+  async function handleFollow(targetUserId, btn, username) {
     btn.disabled = true;
     btn.textContent = 'Seguindo...';
 
@@ -2421,20 +2421,37 @@
       'X-CSRFToken': csrf,
       'X-IG-App-ID': '936619743392459',
       'X-Requested-With': 'XMLHttpRequest',
+      'X-Instagram-AJAX': '1',
       'Content-Type': 'application/x-www-form-urlencoded'
     };
 
+    const bodyData = `user_id=${encodeURIComponent(targetUserId)}&radio_type=wifi-none`;
+
     try {
-      let res = await fetch(`/api/v1/web/friendships/${targetUserId}/follow/`, {
+      // 1. Endpoint padrão do Instagram (friendships/create)
+      let res = await fetch(`/api/v1/friendships/create/${targetUserId}/`, {
         method: 'POST',
         headers: headers,
+        body: bodyData,
         credentials: 'include'
       });
 
-      if (res.status === 404) {
+      // 2. Fallback para /api/v1/web/friendships/.../follow/
+      if (!res.ok) {
+        res = await fetch(`/api/v1/web/friendships/${targetUserId}/follow/`, {
+          method: 'POST',
+          headers: headers,
+          body: bodyData,
+          credentials: 'include'
+        });
+      }
+
+      // 3. Fallback legado para /web/friendships/.../follow/
+      if (!res.ok) {
         res = await fetch(`/web/friendships/${targetUserId}/follow/`, {
           method: 'POST',
           headers: headers,
+          body: bodyData,
           credentials: 'include'
         });
       }
@@ -2444,16 +2461,34 @@
         btn.style.background = '#059669';
         btn.style.color = '#ffffff';
         btn.disabled = true;
+        showToast(`Você agora está seguindo @${username || 'o perfil'}.`, 'success', 3000);
       } else {
         const errText = await res.text().catch(() => '');
         console.error('Erro ao seguir:', res.status, errText);
-        btn.textContent = 'Tentar de novo';
+
+        btn.innerHTML = `<span>Seguir no Perfil ↗</span>`;
+        btn.style.background = '#1877f2';
+        btn.style.color = '#ffffff';
         btn.disabled = false;
+        btn.onclick = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          window.open(`https://www.instagram.com/${username || targetUserId}/`, '_blank');
+        };
+        showToast('O Instagram exigiu confirmação na página do perfil. Clique para abrir.', 'info', 4500);
       }
     } catch (e) {
       console.error('Erro de rede ao seguir:', e);
-      btn.textContent = 'Erro de rede';
+      btn.innerHTML = `<span>Seguir no Perfil ↗</span>`;
+      btn.style.background = '#1877f2';
+      btn.style.color = '#ffffff';
       btn.disabled = false;
+      btn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        window.open(`https://www.instagram.com/${username || targetUserId}/`, '_blank');
+      };
+      showToast('Erro de rede. Clique para abrir o perfil e seguir diretamente.', 'info', 4000);
     }
   }
 
@@ -3281,7 +3316,7 @@
 
     const followBtn = card.querySelector('[data-action="follow"]');
     if (followBtn) {
-      followBtn.addEventListener('click', () => handleFollow(uid, followBtn));
+      followBtn.addEventListener('click', () => handleFollow(uid, followBtn, user.username));
     }
 
     return card;
