@@ -3269,7 +3269,9 @@
 
     let content = '';
     let mimeType = 'text/plain';
-    let filename = `instagram_${currentTab}_${Date.now()}.${format}`;
+    const now = new Date();
+    const dateStamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}h${String(now.getMinutes()).padStart(2, '0')}`;
+    let filename = `instagram_${currentTab}_${dateStamp}.${format}`;
 
     if (format === 'csv') {
       mimeType = 'text/csv;charset=utf-8;';
