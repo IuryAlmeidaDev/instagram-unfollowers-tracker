@@ -185,14 +185,30 @@
 
       if (desc) {
         const statsPart = desc.split('-')[0] || '';
-        const fMatch = statsPart.match(/([\d\.,KMkmb]+)\s+(?:Followers|Seguidores)/i);
-        if (fMatch) followers = fMatch[1].trim();
 
-        const folMatch = statsPart.match(/([\d\.,KMkmb]+)\s+(?:Following|Seguindo)/i);
-        if (folMatch) following = folMatch[1].trim();
+        // 1. Seguidores / Followers (suporta '4.413 seguidores', '4,413 Followers')
+        const fMatch = statsPart.match(/(?:Followers|Seguidores)[:\s]+([\d\.,KMkmb]+)/i) ||
+                       statsPart.match(/([\d\.,KMkmb]+)\s+(?:Followers|Seguidores)/i);
+        if (fMatch) {
+          const val = fMatch[1].replace(/^[^\d]+|[^\d]+$/g, '').trim();
+          if (val && /\d/.test(val)) followers = val;
+        }
 
-        const pMatch = statsPart.match(/([\d\.,KMkmb]+)\s+(?:Posts|Publicações|Publicacoes)/i);
-        if (pMatch) posts = pMatch[1].trim();
+        // 2. Seguindo / Following (suporta 'seguindo 342' em PT-BR e '342 Following' em EN)
+        const folMatch = statsPart.match(/(?:Following|Seguindo)[:\s]+([\d\.,KMkmb]+)/i) ||
+                         statsPart.match(/([\d\.,KMkmb]+)\s+(?:Following|Seguindo)/i);
+        if (folMatch) {
+          const val = folMatch[1].replace(/^[^\d]+|[^\d]+$/g, '').trim();
+          if (val && /\d/.test(val)) following = val;
+        }
+
+        // 3. Publicações / Posts (suporta '15 posts', '15 publicações')
+        const pMatch = statsPart.match(/(?:Posts|Publicações|Publicacoes)[:\s]+([\d\.,KMkmb]+)/i) ||
+                       statsPart.match(/([\d\.,KMkmb]+)\s+(?:Posts|Publicações|Publicacoes)/i);
+        if (pMatch) {
+          const val = pMatch[1].replace(/^[^\d]+|[^\d]+$/g, '').trim();
+          if (val && /\d/.test(val)) posts = val;
+        }
       }
 
       const isPrivate = html.includes('Este perfil é privado') ||
@@ -2035,12 +2051,12 @@
             <p class="ig-unf-block-card-desc">
               A conta <strong>@${u}</strong> existe normalmente e está ativa na web pública, mas está completamente <strong>inacessível para o seu perfil</strong>.
             </p>
-            ${(d.followers !== undefined || d.isPrivate !== undefined) ? `
+            ${(d.followers !== undefined || d.following !== undefined || d.isPrivate !== undefined) ? `
               <div class="ig-unf-block-meta-chips">
                 ${d.isPrivate ? '<span class="ig-unf-meta-chip lock">🔒 Perfil Privado</span>' : '<span class="ig-unf-meta-chip pub">🌐 Perfil Público</span>'}
-                ${d.followers !== undefined ? `<span class="ig-unf-meta-chip">👥 ${d.followers} seguidores</span>` : ''}
-                ${d.following !== undefined ? `<span class="ig-unf-meta-chip">👣 ${d.following} seguindo</span>` : ''}
-                ${d.posts !== undefined ? `<span class="ig-unf-meta-chip">📸 ${d.posts} posts</span>` : ''}
+                ${(d.followers && /\d/.test(d.followers)) ? `<span class="ig-unf-meta-chip">👥 ${d.followers} seguidores</span>` : ''}
+                ${(d.following && /\d/.test(d.following)) ? `<span class="ig-unf-meta-chip">👣 ${d.following} seguindo</span>` : ''}
+                ${(d.posts && /\d/.test(d.posts)) ? `<span class="ig-unf-meta-chip">📸 ${d.posts} posts</span>` : ''}
               </div>
             ` : ''}
             <div class="ig-unf-block-card-footer">
@@ -2095,12 +2111,12 @@
             <p class="ig-unf-block-card-desc">
               O perfil <strong>@${u}</strong> está <strong>acessível e visível normalmente</strong> para a sua conta. Se essa pessoa sumiu da sua lista de seguidores, foi apenas um unfollow normal.
             </p>
-            ${(d.followers !== undefined || d.isPrivate !== undefined) ? `
+            ${(d.followers !== undefined || d.following !== undefined || d.isPrivate !== undefined) ? `
               <div class="ig-unf-block-meta-chips">
                 ${d.isPrivate ? '<span class="ig-unf-meta-chip lock">🔒 Perfil Privado</span>' : '<span class="ig-unf-meta-chip pub">🌐 Perfil Público</span>'}
-                ${d.followers !== undefined ? `<span class="ig-unf-meta-chip">👥 ${d.followers} seguidores</span>` : ''}
-                ${d.following !== undefined ? `<span class="ig-unf-meta-chip">👣 ${d.following} seguindo</span>` : ''}
-                ${d.posts !== undefined ? `<span class="ig-unf-meta-chip">📸 ${d.posts} posts</span>` : ''}
+                ${(d.followers && /\d/.test(d.followers)) ? `<span class="ig-unf-meta-chip">👥 ${d.followers} seguidores</span>` : ''}
+                ${(d.following && /\d/.test(d.following)) ? `<span class="ig-unf-meta-chip">👣 ${d.following} seguindo</span>` : ''}
+                ${(d.posts && /\d/.test(d.posts)) ? `<span class="ig-unf-meta-chip">📸 ${d.posts} posts</span>` : ''}
               </div>
             ` : ''}
             <div class="ig-unf-block-card-footer">
