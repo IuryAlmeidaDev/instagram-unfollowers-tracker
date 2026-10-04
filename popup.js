@@ -27,15 +27,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Checagem e ativação do Plano PRO
+  // Checagem e estado do Plano PRO
   const proStatus = document.getElementById('popupProStatus');
   const proAction = document.getElementById('popupProActionArea');
-  const keyInput = document.getElementById('popupKeyInput');
-  const activateBtn = document.getElementById('popupActivateBtn');
-  const proMsg = document.getElementById('popupProMsg');
   const notifSection = document.getElementById('popupNotifSection');
   const notifToggle = document.getElementById('popupNotifToggle');
   const testNotifBtn = document.getElementById('popupTestNotifBtn');
+
+  const PRO_CHECKOUT_URL = 'https://pay.kiwify.com.br/SEU_LINK';
 
   function refreshProUi() {
     if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
@@ -45,7 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
           proStatus.style.background = 'rgba(245, 158, 11, 0.2)';
           proStatus.style.color = '#fbbf24';
           proStatus.style.borderColor = 'rgba(245, 158, 11, 0.4)';
-          proAction.innerHTML = '<div style="font-size: 11px; color: #34d399; font-weight: 600;">✓ Todos os recursos PRO desbloqueados</div>';
+          proAction.innerHTML = '<div style="font-size: 12px; color: #34d399; font-weight: 600; text-align: center; padding: 6px 0;">✓ Plano PRO Vitalício Ativado</div>';
           if (notifSection) notifSection.style.display = 'block';
           if (notifToggle) notifToggle.checked = res.ig_notifications_enabled !== false;
         } else {
@@ -53,6 +52,12 @@ document.addEventListener('DOMContentLoaded', () => {
           proStatus.style.background = '#27272a';
           proStatus.style.color = '#a1a1aa';
           proStatus.style.borderColor = '#3f3f46';
+          proAction.innerHTML = `
+            <a href="${PRO_CHECKOUT_URL}" target="_blank" rel="noopener noreferrer" id="popupBuyLink" style="display: flex; align-items: center; justify-content: center; gap: 6px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #fff; text-decoration: none; padding: 10px 14px; border-radius: 6px; font-size: 13px; font-weight: 800; min-height: 40px; box-sizing: border-box;">
+              <span>⚡ Liberar PRO Vitalício por R$ 9,99 (PIX)</span>
+            </a>
+            <div style="font-size: 12px; color: #a1a1aa; text-align: center; margin-top: 6px;">Pagamento único • Sem mensalidades</div>
+          `;
           if (notifSection) notifSection.style.display = 'none';
         }
       });
@@ -74,51 +79,6 @@ document.addEventListener('DOMContentLoaded', () => {
       setTimeout(() => {
         testNotifBtn.textContent = 'Testar Notificação';
       }, 2000);
-    });
-  }
-
-  const LICENSE_SALT = 'IG_PRO_2026_SECRET_KEY';
-  const LICENSE_CHARS = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
-
-  function calculateKeyChecksum(str) {
-    let hash = 5381;
-    const combined = str + LICENSE_SALT;
-    for (let i = 0; i < combined.length; i++) {
-      hash = ((hash << 5) + hash) + combined.charCodeAt(i);
-      hash = hash & 0xFFFFFFFF;
-    }
-    let result = '';
-    let num = Math.abs(hash);
-    for (let i = 0; i < 5; i++) {
-      result += LICENSE_CHARS[num % LICENSE_CHARS.length];
-      num = Math.floor(num / LICENSE_CHARS.length) + (i * 7);
-    }
-    return result;
-  }
-
-  function isValidLicenseKey(key) {
-    if (!key) return false;
-    const clean = key.trim().toUpperCase();
-    if (clean === 'PRO-VIP-2026') return true;
-    const parts = clean.split('-');
-    if (parts.length !== 4 || parts[0] !== 'IGPRO') return false;
-    if (parts[1].length !== 5 || parts[2].length !== 5 || parts[3].length !== 5) return false;
-    return calculateKeyChecksum(parts[1] + parts[2]) === parts[3];
-  }
-
-  if (activateBtn) {
-    activateBtn.addEventListener('click', () => {
-      const key = (keyInput.value || '').trim().toUpperCase();
-      if (isValidLicenseKey(key)) {
-        chrome.storage.local.set({ ig_is_pro: true, ig_pro_license: key }, () => {
-          proMsg.textContent = '🎉 Ativado com sucesso!';
-          proMsg.style.color = '#34d399';
-          setTimeout(refreshProUi, 800);
-        });
-      } else {
-        proMsg.textContent = 'Chave inválida. Use a chave recebida no e-mail ou PRO-VIP-2026';
-        proMsg.style.color = '#f87171';
-      }
     });
   }
 });

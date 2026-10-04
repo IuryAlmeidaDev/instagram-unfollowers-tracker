@@ -1149,6 +1149,33 @@
   // GERENCIADOR DE ESTADO PRO E ARMAZENAMENTO LOCAL
   // -------------------------------------------------------------
   async function loadProStatus() {
+    // 1-Click Auto-Ativação Pós-Pagamento PIX (Link Mágico da Página de Obrigado)
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('pro_activated') === '1' || window.location.hash.includes('pro_activated=1')) {
+        if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+          await new Promise(r => chrome.storage.local.set({ ig_is_pro: true, ig_pro_activated_at: Date.now() }, r));
+        }
+        isPro = true;
+        updateProUiState();
+        showToast('🎉 Pagamento PIX confirmado! Seu Plano PRO Vitalício foi ativado.', 'success', 6000);
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+        return true;
+      }
+      if (urlParams.get('pro_reset') === '1' || window.location.hash.includes('pro_reset=1')) {
+        if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+          await new Promise(r => chrome.storage.local.remove(['ig_is_pro', 'ig_pro_license', 'ig_pro_activated_at'], r));
+        }
+        isPro = false;
+        updateProUiState();
+        showToast('Status PRO redefinido para Gratuito para testes.', 'info', 4000);
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+        return false;
+      }
+    } catch (e) {}
+
     return new Promise((resolve) => {
       if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
         chrome.storage.local.get(['ig_is_pro', 'ig_pro_license'], (res) => {
@@ -1550,35 +1577,22 @@
           ` : `
             <!-- Card de Oferta R$ 9,99 Vitalício no PIX -->
             <div class="ig-unf-pro-offer-card">
-              <div class="ig-unf-pro-offer-badge">⚡ OFERTA DE LANÇAMENTO • ACESSO VITALÍCIO</div>
+              <div class="ig-unf-pro-offer-badge">⚡ ACESSO VITALÍCIO PRO • PAGAMENTO ÚNICO</div>
               <div class="ig-unf-pro-offer-price-row">
                 <span class="ig-unf-pro-old-price">De R$ 29,90</span>
                 <span class="ig-unf-pro-new-price">R$ 9,99</span>
                 <span class="ig-unf-pro-pix-tag">no PIX</span>
               </div>
-              <p class="ig-unf-pro-offer-desc">Pagamento único sem mensalidades. Liberação imediata da sua chave.</p>
+              <p class="ig-unf-pro-offer-desc">Sem assinaturas ou mensalidades. Ao pagar no PIX, seu acesso é liberado instantaneamente.</p>
               <a href="${PRO_CHECKOUT_URL}" target="_blank" rel="noopener noreferrer" class="ig-unf-pro-checkout-btn" id="igProBuyBtn">
-                <span>⚡ Adquirir Chave PRO por R$ 9,99 (PIX)</span>
+                <span>⚡ Pagar R$ 9,99 no PIX (Liberar PRO Imediato)</span>
               </a>
               <div class="ig-unf-pro-trust-badges">
-                <span>✓ Chave entregue na hora</span>
+                <span>✓ Liberação imediata</span>
                 <span>✓ Vitalício para sempre</span>
                 <span>✓ 100% Seguro</span>
               </div>
             </div>
-
-            <div class="ig-unf-pro-divider">
-              <span>Já comprou sua chave? Ative abaixo:</span>
-            </div>
-
-            <div class="ig-unf-pro-input-group">
-              <input type="text" class="ig-unf-pro-input" id="igProKeyInput" placeholder="Cole sua chave (ex: IGPRO-XXXX-XXXX-XXXX)">
-              <button class="ig-unf-pro-submit-btn" id="igProActivateBtn">Ativar Licença</button>
-            </div>
-            <div class="ig-unf-pro-act-hint">
-              💡 Chave de demonstração e testes: <code>PRO-VIP-2026</code>
-            </div>
-            <div id="igProStatusFeedback" class="ig-unf-pro-feedback"></div>
           `}
         </div>
       </div>
@@ -1625,25 +1639,12 @@
         });
       }
     } else {
-      const activateBtn = proModal.querySelector('#igProActivateBtn');
-      const keyInput = proModal.querySelector('#igProKeyInput');
-      const feedback = proModal.querySelector('#igProStatusFeedback');
-
-      activateBtn.addEventListener('click', async () => {
-        const res = await activateLicense(keyInput.value);
-        if (res.success) {
-          feedback.textContent = res.message;
-          feedback.style.color = '#34d399';
-          setTimeout(() => {
-            proModal.remove();
-            openProModal();
-            renderResultsView();
-          }, 800);
-        } else {
-          feedback.textContent = res.message;
-          feedback.style.color = '#f87171';
-        }
-      });
+      const buyBtn = proModal.querySelector('#igProBuyBtn');
+      if (buyBtn) {
+        buyBtn.addEventListener('click', () => {
+          showToast('Abrindo checkout PIX seguro...', 'info', 4000);
+        });
+      }
     }
   }
 
