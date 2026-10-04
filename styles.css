@@ -2847,5 +2847,28 @@
   color: #f87171;
 }
 
+/* ------------------------------------------------------------- */
+/* ACESSIBILIDADE & SUPORTE A PREFERS-REDUCED-MOTION            */
+/* ------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .ig-unfollowers-floating-btn,
+  .ig-unf-modal,
+  .ig-unf-dialog,
+  .ig-unf-user-card,
+  .ig-unf-undo-toast,
+  .ig-unf-toast,
+  .ig-unf-confirm-dialog,
+  .ig-unf-export-dropdown-menu,
+  .ig-unf-batch-bar {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .ig-unf-progress-bar,
+  .ig-unf-undo-progress-bar {
+    animation: none !important;
+  }
+}
+
 
 
