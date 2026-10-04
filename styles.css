@@ -405,44 +405,60 @@
 /* Abas de Resultados */
 .ig-unf-tabs {
   display: flex;
-  gap: 8px;
+  align-items: center;
+  gap: 6px;
   margin-bottom: 14px;
-  border-bottom: 1px solid #27272a;
+  border-bottom: 1px solid var(--ig-border-subtle);
   padding-bottom: 10px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.ig-unf-tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .ig-unf-tab-btn {
   background: transparent;
   border: none;
-  color: #a1a1aa;
-  padding: 8px 14px;
-  font-size: 13px;
+  color: var(--ig-text-secondary);
+  padding: 7px 11px;
+  font-size: 12.5px;
   font-weight: 600;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .ig-unf-tab-btn:hover {
-  color: #f4f4f5;
-  background: #1f1f23;
+  color: var(--ig-text-primary);
+  background: var(--ig-bg-surface);
 }
 
 .ig-unf-tab-btn.active {
-  background: #27272a;
+  background: var(--ig-border-subtle);
   color: #ffffff;
 }
 
 .ig-unf-tab-badge {
   background: #333338;
   color: #ffffff;
-  font-size: 12px;
+  font-size: 11.5px;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
-  padding: 2px 8px;
-  border-radius: 10px;
+  padding: 1px 7px;
+  border-radius: 9px;
+  min-width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .ig-unf-tab-btn.active .ig-unf-tab-badge {
@@ -876,65 +892,98 @@
   font-size: 13px;
 }
 
-/* Painel de Indexação Rápida da Fase 1 */
-.ig-unf-phase1-container {
-  padding: 24px 20px;
-  background: #141416;
-  border: 1px solid #27272a;
-  border-radius: 12px;
-  text-align: center;
-  margin: 12px 0;
+/* Painel e Tela de Indexação Rápida da Fase 1 (Scanning View) */
+.ig-unf-phase1-wrapper {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  flex: 1;
+  min-height: 100%;
 }
 
-.ig-unf-phase1-header {
+.ig-unf-phase1-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  animation: igFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ig-unf-phase1-step-badge {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 12px;
-}
-
-.ig-unf-phase1-badge {
-  background: rgba(16, 185, 129, 0.15);
-  border: 1px solid rgba(16, 185, 129, 0.3);
-  color: #34d399;
+  background: var(--ig-bg-surface);
+  border: 1px solid var(--ig-border-subtle);
+  padding: 6px 12px;
+  border-radius: 8px;
   font-size: 12px;
-  font-weight: 700;
-  padding: 3px 8px;
-  border-radius: 6px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  color: var(--ig-text-primary);
+  font-weight: 600;
 }
 
-.ig-unf-spinner-sm {
-  width: 14px;
-  height: 14px;
-  border: 2px solid #27272a;
-  border-top-color: #34d399;
+.ig-unf-phase1-card,
+.ig-unf-phase1-container {
+  margin: auto;
+  width: 100%;
+  max-width: 480px;
+  background: var(--ig-bg-surface);
+  border: 1px solid var(--ig-border-subtle);
+  border-radius: var(--ig-radius-xl);
+  padding: 32px 28px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  animation: igFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ig-unf-phase1-radar {
+  position: relative;
+  width: 58px;
+  height: 58px;
   border-radius: 50%;
-  animation: igSpin 0.75s linear infinite;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(131, 58, 180, 0.2), rgba(253, 29, 29, 0.2), rgba(252, 176, 69, 0.2));
+  border: 1px solid rgba(253, 29, 29, 0.35);
+  color: #ffffff;
+  margin-bottom: 16px;
+}
+
+.ig-unf-phase1-radar-ripple {
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 2px solid rgba(253, 29, 29, 0.4);
+  animation: igRadarPulse 2s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+@keyframes igRadarPulse {
+  0% { transform: scale(0.9); opacity: 0.8; }
+  100% { transform: scale(1.35); opacity: 0; }
 }
 
 .ig-unf-phase1-title {
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 700;
   color: #ffffff;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
+  letter-spacing: -0.01em;
 }
 
 .ig-unf-phase1-desc {
-  font-size: 12px;
-  color: #a1a1aa;
-  max-width: 440px;
+  font-size: 13px;
+  color: var(--ig-text-secondary);
+  max-width: 420px;
   line-height: 1.5;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 
 .ig-unf-progress-track {
   width: 100%;
-  max-width: 440px;
+  max-width: 420px;
   height: 6px;
   background: #27272a;
   border-radius: 3px;
@@ -957,10 +1006,10 @@
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  max-width: 440px;
+  max-width: 420px;
   font-size: 12px;
-  color: #d4d4d8;
-  margin-bottom: 16px;
+  color: var(--ig-text-primary);
+  margin-bottom: 18px;
 }
 
 .ig-unf-speed-tag {
@@ -975,15 +1024,15 @@
   justify-content: center;
   gap: 8px;
   min-height: 36px;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
   flex-wrap: wrap;
 }
 
 .ig-unf-stream-avatar {
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
-  border: 1px solid #3f3f46;
+  border: 1.5px solid var(--ig-border-subtle);
   object-fit: cover;
   animation: igStreamPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -997,11 +1046,11 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding-top: 14px;
-  border-top: 1px solid #27272a;
+  gap: 10px;
+  padding-top: 18px;
+  border-top: 1px solid var(--ig-border-subtle);
   width: 100%;
-  max-width: 440px;
+  max-width: 420px;
   animation: igFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -1009,12 +1058,12 @@
   background: #27272a;
   border: 1px solid #3f3f46;
   color: #ffffff;
-  padding: 8px 16px;
+  padding: 9px 18px;
   border-radius: 8px;
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 700;
   cursor: pointer;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
   transition: background 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
@@ -1030,8 +1079,20 @@
 .ig-unf-early-hint {
   font-size: 12px;
   color: #fbbf24;
-  line-height: 1.4;
+  line-height: 1.45;
   max-width: 420px;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  text-align: left;
+}
+
+.ig-unf-hint-icon {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: #fbbf24;
 }
 
 .ig-unf-warning-banner {
@@ -2864,7 +2925,8 @@
   }
 
   .ig-unf-progress-bar,
-  .ig-unf-undo-progress-bar {
+  .ig-unf-undo-progress-bar,
+  .ig-unf-phase1-radar-ripple {
     animation: none !important;
   }
 }
