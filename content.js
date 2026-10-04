@@ -2647,13 +2647,9 @@
     const shouldShowBar = currentTab === 'notFollowingBack' && (count > 0 || isBatchModeActive);
 
     if (bar) {
-      if (currentTab === 'notFollowingBack') {
+      if (currentTab === 'notFollowingBack' && shouldShowBar) {
         bar.style.display = 'flex';
-        if (shouldShowBar) {
-          bar.classList.add('visible');
-        } else {
-          bar.classList.remove('visible');
-        }
+        bar.classList.add('visible');
       } else {
         bar.classList.remove('visible');
         bar.style.display = 'none';
@@ -2847,7 +2843,7 @@
 
     card.innerHTML = `
       <div class="ig-unf-card-left">
-        ${showCheckbox ? `<input type="checkbox" class="ig-unf-card-checkbox" data-uid="${uid}" ${selectedUids.has(uid) ? 'checked' : ''} aria-label="Selecionar para deseguir">` : ''}
+        ${showCheckbox ? `<label class="ig-unf-checkbox-container" title="Selecionar para deseguir"><input type="checkbox" class="ig-unf-card-checkbox" data-uid="${uid}" ${selectedUids.has(uid) ? 'checked' : ''} aria-label="Selecionar para deseguir"></label>` : ''}
         <button class="ig-unf-star-btn ${isVip ? 'active' : ''}" data-uid="${uid}" title="${isVip ? 'Remover dos VIPs' : 'Adicionar à Lista VIP protegida'}">
           ${isVip ? SVGS.star : SVGS.starOutline}
         </button>

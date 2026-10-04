@@ -172,9 +172,11 @@
   border: none;
   color: #a1a1aa;
   cursor: pointer;
-  padding: 6px;
+  padding: 8px;
+  min-width: 36px;
+  min-height: 36px;
   border-radius: 6px;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   transition: color 0.15s ease, background 0.15s ease;
@@ -304,14 +306,15 @@
   background: #27272a;
   border: 1px solid #3f3f46;
   color: #f87171;
-  padding: 5px 11px;
+  padding: 8px 14px;
+  min-height: 36px;
   border-radius: 6px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   cursor: pointer;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
   flex-shrink: 0;
 }
@@ -359,9 +362,9 @@
 .ig-unf-tab-badge {
   background: #333338;
   color: #ffffff;
-  font-size: 11px;
+  font-size: 12px;
   font-variant-numeric: tabular-nums;
-  padding: 2px 7px;
+  padding: 2px 8px;
   border-radius: 10px;
 }
 
@@ -585,7 +588,7 @@
 }
 
 .ig-unf-export-item-desc {
-  font-size: 10.5px;
+  font-size: 11px;
   color: #71717a;
 }
 
@@ -659,7 +662,7 @@
 }
 
 .ig-unf-fullname {
-  font-size: 11px;
+  font-size: 12px;
   color: #b0b0b8;
   max-width: 190px;
   overflow: hidden;
@@ -680,11 +683,13 @@
   color: #a1a1aa;
   border: 1px solid #36363b;
   border-radius: 6px;
-  padding: 6px 10px;
-  font-size: 11px;
+  padding: 8px 12px;
+  min-height: 36px;
+  box-sizing: border-box;
+  font-size: 12px;
   font-weight: 600;
   text-decoration: none;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 4px;
   transition: all 0.15s ease;
@@ -702,10 +707,15 @@
   color: #f87171;
   border: 1px solid rgba(239, 68, 68, 0.35);
   border-radius: 6px;
-  padding: 6px 11px;
-  font-size: 11px;
+  padding: 8px 14px;
+  min-height: 36px;
+  box-sizing: border-box;
+  font-size: 12px;
   font-weight: 700;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   transition: all 0.15s ease;
 }
 
@@ -726,10 +736,15 @@
   color: #ffffff;
   border: none;
   border-radius: 6px;
-  padding: 6px 12px;
-  font-size: 11px;
+  padding: 8px 14px;
+  min-height: 36px;
+  box-sizing: border-box;
+  font-size: 12px;
   font-weight: 700;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   transition: background 0.15s ease;
 }
 
@@ -744,7 +759,7 @@
 
 /* Selo de Amigo Mútuo */
 .ig-unf-mutual-badge {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   color: #10b981;
   background: rgba(16, 185, 129, 0.14);
@@ -808,7 +823,7 @@
   background: rgba(16, 185, 129, 0.15);
   border: 1px solid rgba(16, 185, 129, 0.3);
   color: #34d399;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   padding: 3px 8px;
   border-radius: 6px;
@@ -873,7 +888,7 @@
 
 .ig-unf-speed-tag {
   color: #10b981;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
 }
 
@@ -936,7 +951,7 @@
 }
 
 .ig-unf-early-hint {
-  font-size: 11px;
+  font-size: 12px;
   color: #fbbf24;
   line-height: 1.4;
   max-width: 420px;
@@ -948,7 +963,7 @@
   color: #fde68a;
   padding: 10px 14px;
   border-radius: 8px;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.4;
   margin-bottom: 12px;
   animation: igFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
@@ -969,9 +984,9 @@
   background: rgba(245, 158, 11, 0.18);
   border: 1px solid rgba(245, 158, 11, 0.45);
   color: #fbbf24;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
-  padding: 2px 7px;
+  padding: 3px 8px;
   border-radius: 4px;
   display: inline-flex;
   align-items: center;
@@ -983,9 +998,9 @@
   background: #27272a;
   border: 1px solid #3f3f46;
   color: #a1a1aa;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
-  padding: 2px 6px;
+  padding: 3px 7px;
   border-radius: 4px;
 }
 
@@ -994,13 +1009,15 @@
   color: #121214;
   border: 1px solid rgba(251, 191, 36, 0.4);
   border-radius: 6px;
-  padding: 5px 10px;
-  font-size: 11px;
+  padding: 8px 14px;
+  min-height: 36px;
+  box-sizing: border-box;
+  font-size: 12px;
   font-weight: 800;
   cursor: pointer;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   transition: transform 0.15s ease, opacity 0.15s ease;
 }
 
@@ -1054,12 +1071,23 @@
 .ig-unf-card-left {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+}
+
+.ig-unf-checkbox-container {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  min-height: 36px;
+  cursor: pointer;
+  border-radius: 6px;
+  user-select: none;
 }
 
 .ig-unf-card-checkbox {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   cursor: pointer;
   accent-color: #ef4444;
   border-radius: 4px;
@@ -1070,17 +1098,20 @@
   border: none;
   color: #52525b;
   cursor: pointer;
-  padding: 4px;
-  display: flex;
+  padding: 6px;
+  min-width: 36px;
+  min-height: 36px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
-  transition: color 0.15s ease, transform 0.15s ease;
+  border-radius: 6px;
+  transition: color 0.15s ease, transform 0.15s ease, background 0.15s ease;
 }
 
 .ig-unf-star-btn:hover {
   color: #fbbf24;
-  transform: scale(1.15);
+  background: rgba(251, 191, 36, 0.08);
+  transform: scale(1.08);
 }
 
 .ig-unf-star-btn.active {
@@ -1088,7 +1119,7 @@
 }
 
 .ig-unf-vip-protected-badge {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   color: #34d399;
   background: rgba(16, 185, 129, 0.15);
@@ -1101,7 +1132,7 @@
 }
 
 .ig-unf-lost-badge {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   color: #f87171;
   background: rgba(239, 68, 68, 0.15);
@@ -1115,36 +1146,20 @@
 
 /* Barra de Ações em Lote (Batch Unfollow Bar) - Progressive Disclosure */
 .ig-unf-batch-bar {
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: space-between;
-  padding: 0 12px;
+  padding: 8px 12px;
   background: #18181b;
-  border: 1px solid transparent;
+  border: 1px solid #27272a;
   border-radius: 8px;
-  margin-bottom: 0;
-  max-height: 0;
-  opacity: 0;
-  overflow: hidden;
-  pointer-events: none;
-  visibility: hidden;
+  margin-bottom: 12px;
   box-sizing: border-box;
-  transition: max-height 0.25s cubic-bezier(0.16, 1, 0.3, 1),
-              opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1),
-              padding 0.25s cubic-bezier(0.16, 1, 0.3, 1),
-              margin-bottom 0.25s cubic-bezier(0.16, 1, 0.3, 1),
-              border-color 0.2s ease,
-              visibility 0.25s;
+  animation: igFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .ig-unf-batch-bar.visible {
-  max-height: 56px;
-  opacity: 1;
-  visibility: visible;
-  padding: 8px 12px;
-  margin-bottom: 12px;
-  border-color: #27272a;
-  pointer-events: auto;
+  display: flex;
 }
 
 .ig-unf-batch-select-group {
@@ -1154,7 +1169,7 @@
 }
 
 .ig-unf-batch-label {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   color: #a1a1aa;
   margin-right: 2px;
@@ -1164,11 +1179,16 @@
   background: #27272a;
   border: 1px solid #3f3f46;
   color: #e4e4e7;
-  padding: 3px 8px;
-  border-radius: 4px;
-  font-size: 11px;
+  padding: 6px 12px;
+  min-height: 32px;
+  box-sizing: border-box;
+  border-radius: 6px;
+  font-size: 12px;
   font-weight: 700;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   transition: background 0.15s ease, color 0.15s ease;
 }
 
@@ -1190,13 +1210,16 @@
   background: #dc2626;
   border: 1px solid #ef4444;
   color: #ffffff;
-  padding: 6px 12px;
+  padding: 8px 16px;
+  min-height: 36px;
+  box-sizing: border-box;
   border-radius: 6px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   cursor: pointer;
-  display: flex;
+  display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   transition: background 0.15s ease, transform 0.15s ease;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
@@ -1434,9 +1457,9 @@
 }
 
 .ig-unf-pro-feat-content span {
-  font-size: 11px;
+  font-size: 12px;
   color: #a1a1aa;
-  line-height: 1.35;
+  line-height: 1.4;
 }
 
 .ig-unf-pro-activation-box {
@@ -1468,6 +1491,8 @@
   padding: 8px 12px;
   font-size: 12px;
   outline: none;
+  min-height: 36px;
+  box-sizing: border-box;
   font-family: inherit;
 }
 
@@ -1483,6 +1508,11 @@
   font-size: 12px;
   border-radius: 6px;
   padding: 8px 14px;
+  min-height: 36px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   transition: opacity 0.15s ease;
 }
@@ -1492,7 +1522,7 @@
 }
 
 .ig-unf-pro-act-hint {
-  font-size: 11px;
+  font-size: 12px;
   color: #a1a1aa;
   line-height: 1.4;
 }
@@ -1572,13 +1602,16 @@
   color: #f87171;
   border: 1px solid rgba(239, 68, 68, 0.4);
   border-radius: 6px;
-  padding: 6px 10px;
-  font-size: 11.5px;
+  padding: 8px 14px;
+  min-height: 36px;
+  box-sizing: border-box;
+  font-size: 12px;
   font-weight: 700;
   cursor: pointer;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 5px;
+  justify-content: center;
+  gap: 6px;
   transition: opacity 0.15s ease;
 }
 
@@ -1591,13 +1624,16 @@
   color: #e4e4e7;
   border: 1px solid #3f3f46;
   border-radius: 6px;
-  padding: 6px 10px;
-  font-size: 11.5px;
+  padding: 8px 14px;
+  min-height: 36px;
+  box-sizing: border-box;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 5px;
+  justify-content: center;
+  gap: 6px;
   transition: all 0.15s ease;
 }
 
@@ -1609,10 +1645,10 @@
 .ig-unf-status-pill {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  font-size: 11px;
+  gap: 6px;
+  font-size: 12px;
   font-weight: 700;
-  padding: 4px 8px;
+  padding: 4px 9px;
   border-radius: 6px;
   white-space: nowrap;
   line-height: 1;
@@ -1640,14 +1676,17 @@
   background: #27272a;
   border: 1px solid #3f3f46;
   color: #e4e4e7;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
-  padding: 4px 8px;
+  padding: 6px 12px;
+  min-height: 32px;
+  box-sizing: border-box;
   border-radius: 6px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  justify-content: center;
+  gap: 5px;
   transition: all 0.15s ease;
 }
 
@@ -1755,9 +1794,9 @@
 }
 
 .ig-unf-block-tab-badge {
-  font-size: 10.5px;
+  font-size: 12px;
   font-weight: 700;
-  padding: 1px 7px;
+  padding: 2px 8px;
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.1);
   color: #d4d4d8;
@@ -1850,7 +1889,7 @@
 }
 
 .ig-unf-block-item-sub {
-  font-size: 11px;
+  font-size: 12px;
   color: #a1a1aa;
   display: flex;
   align-items: center;
@@ -1866,14 +1905,17 @@
 }
 
 .ig-unf-block-item-btn {
-  padding: 5px 9px;
+  padding: 8px 12px;
+  min-height: 36px;
+  box-sizing: border-box;
   border-radius: 6px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  justify-content: center;
+  gap: 5px;
   border: 1px solid transparent;
   transition: all 0.15s ease;
   background: #27272a;
@@ -1928,7 +1970,7 @@
   text-align: center;
   padding: 24px 16px;
   color: #a1a1aa;
-  font-size: 12.5px;
+  font-size: 13px;
   line-height: 1.5;
   background: rgba(255, 255, 255, 0.02);
   border: 1px dashed #27272a;
@@ -1964,9 +2006,11 @@
   border: 1px solid #3f3f46;
   border-radius: 6px;
   color: #ffffff;
-  padding: 8px 10px;
-  font-size: 12.5px;
+  padding: 8px 12px;
+  font-size: 13px;
   outline: none;
+  min-height: 36px;
+  box-sizing: border-box;
   font-family: inherit;
 }
 
@@ -1982,10 +2026,13 @@
   font-size: 12px;
   border-radius: 6px;
   padding: 8px 14px;
+  min-height: 36px;
+  box-sizing: border-box;
   cursor: pointer;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 5px;
+  justify-content: center;
+  gap: 6px;
   transition: opacity 0.15s ease;
 }
 
@@ -1994,9 +2041,9 @@
 }
 
 .ig-unf-block-hint {
-  font-size: 11px;
+  font-size: 12px;
   color: #a1a1aa;
-  line-height: 1.35;
+  line-height: 1.4;
 }
 
 .ig-unf-block-loading {
@@ -2158,7 +2205,7 @@
 }
 
 .ig-unf-meta-chip {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   padding: 3px 8px;
   border-radius: 6px;
@@ -2230,11 +2277,13 @@
   border: 1px solid #3f3f46;
   color: #e4e4e7;
   border-radius: 6px;
-  padding: 8px 10px;
-  font-size: 11px;
+  padding: 8px 12px;
+  min-height: 36px;
+  box-sizing: border-box;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
@@ -2339,9 +2388,9 @@
   background: rgba(245, 158, 11, 0.18);
   color: #fbbf24;
   border: 1px solid rgba(245, 158, 11, 0.3);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
-  padding: 1px 6px;
+  padding: 2px 7px;
   border-radius: 4px;
   font-variant-numeric: tabular-nums;
 }
@@ -2351,10 +2400,15 @@
   color: #ffffff;
   border: none;
   border-radius: 6px;
-  padding: 6px 14px;
+  padding: 8px 16px;
+  min-height: 36px;
+  box-sizing: border-box;
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   transition: all 0.15s ease;
   white-space: nowrap;
   flex-shrink: 0;
@@ -2397,8 +2451,12 @@
   cursor: pointer;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
-  padding: 5px 8px;
+  padding: 6px 12px;
+  min-height: 36px;
+  box-sizing: border-box;
+  font-size: 12px;
 }
 
 .ig-unf-unfollow-btn.ig-unf-btn-pending:hover {
@@ -2409,9 +2467,9 @@
 .ig-btn-undo-link {
   background: #ef4444;
   color: #ffffff;
-  padding: 2px 6px;
+  padding: 3px 7px;
   border-radius: 4px;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.02em;
