@@ -63,20 +63,168 @@
     return uid;
   }
 
-  // Verifica se um usuário te bloqueou, desativou ou apenas deu unfollow
+  // Verifica com a sessão ativa se o usuário te bloqueou, desativou ou se está normal
   async function checkUserBlockStatus(username) {
-    return new Promise((resolve) => {
-      if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
-        chrome.runtime.sendMessage({
-          action: 'check_block_status',
-          username: username
-        }, (res) => {
-          resolve(res || { status: 'error', message: 'Falha na verificação.' });
+    const clean = (username || '').replace(/^@/, '').trim().toLowerCase();
+    if (!clean) {
+      return { status: 'invalid', message: 'Digite um usuário válido.' };
+    }
+
+    try {
+      const csrf = getCsrfToken();
+      const headers = {
+        'X-IG-App-ID': '936619743392459',
+        'X-Requested-With': 'XMLHttpRequest'
+      };
+      if (csrf) headers['X-CSRFToken'] = csrf;
+
+      // 1. TESTE LOGADO: Tenta consultar a API de perfil com a sessão ativa
+      let loggedInUser = null;
+      try {
+        const res = await fetch(`/api/v1/users/web_profile_info/?username=${encodeURIComponent(clean)}`, {
+          headers: headers,
+          credentials: 'include'
         });
-      } else {
-        resolve({ status: 'error', message: 'Extensão não inicializada.' });
+
+        if (res.ok) {
+          const json = await res.json();
+          if (json?.data?.user?.username) {
+            loggedInUser = json.data.user;
+          }
+        }
+      } catch (e) {
+        console.warn('Erro ao consultar web_profile_info:', e);
       }
-    });
+
+      // Se a API retornou o perfil com sucesso, você NÃO está bloqueado!
+      if (loggedInUser) {
+        return {
+          status: 'unfollow',
+          username: clean,
+          title: '🟢 NÃO Te Bloqueou!',
+          message: `@${clean} está com o perfil ativo e visível normalmente para você.`,
+          isBlocked: false,
+          isDeactivated: false,
+          details: {
+            fullName: loggedInUser.full_name || '',
+            isPrivate: !!loggedInUser.is_private,
+            followers: loggedInUser.edge_followed_by?.count,
+            posts: loggedInUser.edge_owner_to_timeline_media?.count,
+            avatar: loggedInUser.profile_pic_url
+          }
+        };
+      }
+
+      // 1B. FALLBACK LOGADO: Mecanismo de busca do Instagram com a sessão do usuário
+      try {
+        const searchRes = await fetch(`/api/v1/web/search/topsearch/?context=blended&query=${encodeURIComponent(clean)}`, {
+          headers: headers,
+          credentials: 'include'
+        });
+
+        if (searchRes.ok) {
+          const searchData = await searchRes.json();
+          const match = (searchData.users || []).find(item => item.user && item.user.username.toLowerCase() === clean);
+          if (match && match.user) {
+            const u = match.user;
+            return {
+              status: 'unfollow',
+              username: clean,
+              title: '🟢 NÃO Te Bloqueou!',
+              message: `@${clean} aparece normalmente nas suas buscas e seu perfil está acessível.`,
+              isBlocked: false,
+              isDeactivated: false,
+              details: {
+                fullName: u.full_name || '',
+                isPrivate: !!u.is_private,
+                avatar: u.profile_pic_url
+              }
+            };
+          }
+        }
+      } catch (e) {
+        console.warn('Erro ao consultar topsearch:', e);
+      }
+
+      // 1C. FALLBACK LOGADO: Requisição HTML de /{username}/ com cookies da sessão
+      let loggedInPageAccessible = false;
+      try {
+        const pageRes = await fetch(`/${encodeURIComponent(clean)}/`, {
+          credentials: 'include'
+        });
+
+        if (pageRes.ok) {
+          const pageHtml = await pageRes.text();
+          const isErrorPage = pageHtml.includes('PolarisErrorRoute') ||
+                              pageHtml.includes('httpErrorPage') ||
+                              pageHtml.includes('show_lox_redesigned_404_page') ||
+                              pageHtml.includes('Esta página não está disponível') ||
+                              pageHtml.includes("Sorry, this page isn't available");
+
+          if (!isErrorPage) {
+            loggedInPageAccessible = true;
+          }
+        }
+      } catch (e) {}
+
+      if (loggedInPageAccessible) {
+        return {
+          status: 'unfollow',
+          username: clean,
+          title: '🟢 NÃO Te Bloqueou!',
+          message: `A página de @${clean} carregou normalmente na sua conta. O perfil não te bloqueou.`,
+          isBlocked: false,
+          isDeactivated: false
+        };
+      }
+
+      // 2. SE O USUÁRIO NÃO É ACESSÍVEL NA SUA SESSÃO LOGADA:
+      // Testa se o perfil existe na web pública deslogada (sem cookies)
+      let publicExists = false;
+      try {
+        const publicRes = await new Promise((resolve) => {
+          chrome.runtime.sendMessage({
+            action: 'check_public_existence',
+            username: clean
+          }, resolve);
+        });
+        publicExists = !!(publicRes && publicRes.exists);
+      } catch (e) {
+        publicExists = false;
+      }
+
+      if (publicExists) {
+        // Existe para o público geral, mas é inacessível para o usuário logado = BLOQUEIO REAL
+        return {
+          status: 'blocked',
+          username: clean,
+          title: '🚨 TE BLOQUEOU!',
+          message: `A conta @${clean} está ativa no Instagram, mas foi bloqueada especificamente para o seu perfil.`,
+          isBlocked: true,
+          isDeactivated: false
+        };
+      } else {
+        // Não existe nem para você e nem na web pública = CONTA DESATIVADA OU EXCLUÍDA
+        return {
+          status: 'deactivated',
+          username: clean,
+          title: '⚪ Conta Desativada ou Inexistente',
+          message: `A conta @${clean} não foi encontrada. O usuário provavelmente desativou o Instagram, trocou de @ ou o perfil não existe.`,
+          isBlocked: false,
+          isDeactivated: true
+        };
+      }
+    } catch (err) {
+      console.error('Erro na checagem de status:', err);
+      return {
+        status: 'error',
+        username: clean,
+        title: 'Erro na Verificação',
+        message: 'Não foi possível verificar no momento. Tente novamente em alguns instantes.',
+        isBlocked: false,
+        isDeactivated: false
+      };
+    }
   }
 
   // Obtém o token CSRF para realizar ações de seguir/deseguir
@@ -564,6 +712,7 @@
           </div>
         `;
       } else if (result.status === 'unfollow') {
+        const d = result.details || {};
         resultBox.innerHTML = `
           <div class="ig-unf-block-card is-unfollow">
             <div class="ig-unf-block-card-header">
@@ -571,7 +720,9 @@
               <strong class="ig-unf-block-card-title">🟢 NÃO Te Bloqueou!</strong>
             </div>
             <p class="ig-unf-block-card-desc">
-              O perfil <strong>@${u}</strong> está acessível e visível normalmente para você. Se essa pessoa sumiu da sua lista, foi apenas um unfollow normal.
+              O perfil <strong>@${u}</strong> está <strong>acessível e visível normalmente</strong> para a sua conta.
+              ${d.fullName ? `<br><span style="color: #a1a1aa; font-size: 11.5px;">Nome: <strong>${d.fullName}</strong> ${d.isPrivate ? '• 🔒 Perfil Privado' : '• 🌐 Perfil Público'}</span>` : ''}
+              ${d.followers !== undefined ? `<br><span style="color: #a1a1aa; font-size: 11.5px;">Seguidores: <strong>${d.followers.toLocaleString()}</strong> • Posts: <strong>${(d.posts || 0).toLocaleString()}</strong></span>` : ''}
             </p>
             <div class="ig-unf-block-card-footer">
               <span class="ig-unf-status-pill unfollow">Acesso Normal</span>

@@ -129,109 +129,41 @@ chrome.notifications.onClicked.addListener((notifId) => {
   chrome.notifications.clear(notifId);
 });
 
-// Motor de Verificação de Bloqueio (Dual Check: Logado vs. Anônimo Público)
-async function verifyBlockStatus(username) {
-  const cleanUsername = (username || '').replace(/^@/, '').trim().toLowerCase();
-  if (!cleanUsername) {
-    return { status: 'invalid', message: 'Nome de usuário inválido.' };
-  }
+// Verifica se uma conta existe publicamente na web deslogada
+async function checkPublicAccountExistence(username) {
+  const clean = (username || '').replace(/^@/, '').trim().toLowerCase();
+  if (!clean) return { exists: false };
 
   try {
-    // PASSO 1: Teste com a sessão logada do usuário
-    let loggedInProfile = null;
-    let loggedInStatus = 0;
-
-    try {
-      const resLoggedIn = await fetch(`https://www.instagram.com/api/v1/users/web_profile_info/?username=${cleanUsername}`, {
-        headers: {
-          'X-IG-App-ID': '936619743392459',
-          'X-Requested-With': 'XMLHttpRequest'
-        },
-        credentials: 'include'
-      });
-      loggedInStatus = resLoggedIn.status;
-      if (resLoggedIn.ok) {
-        const data = await resLoggedIn.json();
-        loggedInProfile = data?.data?.user;
+    const res = await fetch(`https://www.instagram.com/${encodeURIComponent(clean)}/`, {
+      credentials: 'omit',
+      cache: 'no-store',
+      headers: {
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
       }
-    } catch (e) {
-      loggedInStatus = 500;
+    });
+
+    const html = await res.text();
+
+    const isProfilePage = html.includes('PolarisLoggedOutDesktopWWWProfileRoute') ||
+                          html.includes('profilePage') ||
+                          html.includes(`@${clean}) • Instagram`) ||
+                          html.includes(`@${clean}) \u2022 Instagram`);
+
+    const isErrorPage = html.includes('PolarisErrorRoute') ||
+                        html.includes('httpErrorPage') ||
+                        html.includes('show_lox_redesigned_404_page') ||
+                        html.includes('Esta página não está disponível') ||
+                        html.includes("Sorry, this page isn't available");
+
+    if (isProfilePage && !isErrorPage) {
+      return { exists: true };
     }
 
-    // Se o usuário logado consegue ver o perfil normalmente
-    if (loggedInProfile && loggedInProfile.username) {
-      return {
-        status: 'unfollow',
-        username: cleanUsername,
-        title: 'Não te bloqueou (Apenas Unfollow)',
-        message: `@${cleanUsername} não te bloqueou. A conta continua aberta e visível para você normalmente.`,
-        isBlocked: false,
-        isDeactivated: false
-      };
-    }
-
-    // PASSO 2: O perfil deu erro ou 404 para a conta logada. Faz o teste anônimo/deslogado.
-    let publicExists = false;
-    try {
-      const resPublic = await fetch(`https://www.instagram.com/${cleanUsername}/`, {
-        credentials: 'omit',
-        cache: 'no-store',
-        headers: {
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
-        }
-      });
-
-      if (resPublic.ok) {
-        const html = await resPublic.text();
-        // Se a página pública retornar meta tags do perfil ou o título do usuário
-        const hasUnavailableNotice = html.includes("Esta página não está disponível") ||
-                                     html.includes("Sorry, this page isn't available") ||
-                                     html.includes("The link you followed may be broken");
-
-        const hasProfileIndicators = html.includes(`@${cleanUsername}`) ||
-                                     html.includes(`instagram.com/${cleanUsername}`) ||
-                                     html.includes('og:title') ||
-                                     html.includes('profile_pic_url');
-
-        if (!hasUnavailableNotice && hasProfileIndicators) {
-          publicExists = true;
-        }
-      }
-    } catch (e) {
-      publicExists = false;
-    }
-
-    // DIAGNÓSTICO FINAL:
-    if (publicExists) {
-      // O perfil existe para o público geral, mas é inacessível para o usuário logado = BLOQUEIO
-      return {
-        status: 'blocked',
-        username: cleanUsername,
-        title: '🚨 TE BLOQUEOU!',
-        message: `@${cleanUsername} bloqueou seu perfil. A conta existe publicamente, mas foi bloqueada para você.`,
-        isBlocked: true,
-        isDeactivated: false
-      };
-    } else {
-      // O perfil não existe nem publicamente = CONTA DESATIVADA / EXCLUÍDA
-      return {
-        status: 'deactivated',
-        username: cleanUsername,
-        title: 'Conta Desativada ou Excluída',
-        message: `A conta @${cleanUsername} não foi encontrada. O usuário provavelmente desativou ou excluiu o Instagram.`,
-        isBlocked: false,
-        isDeactivated: true
-      };
-    }
-  } catch (err) {
-    return {
-      status: 'error',
-      username: cleanUsername,
-      title: 'Erro na verificação',
-      message: 'Não foi possível verificar no momento devido a restrições de conexão.',
-      isBlocked: false,
-      isDeactivated: false
-    };
+    return { exists: false };
+  } catch (e) {
+    return { exists: false };
   }
 }
 
@@ -243,8 +175,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
 
-  if (request.action === 'check_block_status') {
-    verifyBlockStatus(request.username).then((result) => {
+  if (request.action === 'check_public_existence') {
+    checkPublicAccountExistence(request.username).then((result) => {
       sendResponse(result);
     });
     return true; // Resposta assíncrona
