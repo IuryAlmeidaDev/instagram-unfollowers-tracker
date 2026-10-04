@@ -43,38 +43,59 @@
   outline-offset: 2px;
 }
 
-/* Botão Flutuante Proeminente na Lateral Direita (Meio da Tela) */
+/* Botão Flutuante Proeminente na Lateral Direita (Meio da Tela, Arrastável) */
 .ig-unfollowers-floating-btn {
   position: fixed;
   right: 18px;
-  top: 50%;
-  transform: translateY(-50%);
+  top: calc(50vh - 22px);
   z-index: 999999;
   background: linear-gradient(45deg, #833ab4, #fd1d1d, #fcb045);
   color: #ffffff;
   border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: 30px;
-  padding: 12px 20px;
+  padding: 11px 18px 11px 12px;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   font-size: 13px;
   font-weight: 700;
-  cursor: pointer;
+  cursor: grab;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 9px;
-  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease;
+  gap: 7px;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, opacity 0.2s ease;
   white-space: nowrap;
   user-select: none;
+  touch-action: none;
 }
 
 .ig-unfollowers-floating-btn:hover {
-  transform: translateY(-50%) scale(1.05);
+  transform: scale(1.04);
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.6);
 }
 
 .ig-unfollowers-floating-btn:active {
-  transform: translateY(-50%) scale(0.98);
+  transform: scale(0.98);
+}
+
+.ig-unfollowers-floating-btn.is-dragging {
+  cursor: grabbing !important;
+  transition: none !important;
+  transform: scale(1.05) !important;
+  opacity: 0.95;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.7) !important;
+}
+
+.ig-btn-grip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  color: rgba(255, 255, 255, 0.7);
+  transition: color 0.15s ease;
+}
+
+.ig-unfollowers-floating-btn:hover .ig-btn-grip {
+  color: #ffffff;
 }
 
 .ig-btn-icon {

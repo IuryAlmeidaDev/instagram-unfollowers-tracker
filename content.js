@@ -55,6 +55,7 @@
     userX: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="17" y1="8" x2="22" y2="13"/><line x1="22" y1="8" x2="17" y2="13"/></svg>`,
     refresh: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>`,
     chevronDown: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`,
+    grip: `<svg width="10" height="14" viewBox="0 0 10 16" fill="currentColor"><circle cx="3" cy="3" r="1.5"/><circle cx="7" cy="3" r="1.5"/><circle cx="3" cy="8" r="1.5"/><circle cx="7" cy="8" r="1.5"/><circle cx="3" cy="13" r="1.5"/><circle cx="7" cy="13" r="1.5"/></svg>`,
     checkSquare: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>`,
     fileText: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>`,
     fileSpreadsheet: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/><line x1="12" y1="13" x2="12" y2="21"/></svg>`
@@ -1092,19 +1093,96 @@
   // -------------------------------------------------------------
   // INTERFACE PRINCIPAL E BOTÃO FLUTUANTE
   // -------------------------------------------------------------
-  function injectFloatingButton() {
-    if (document.querySelector('.ig-unfollowers-floating-btn')) return;
+  let floatingBtnTop = null;
 
-    const btn = document.createElement('button');
+  function injectFloatingButton() {
+    let btn = document.querySelector('.ig-unfollowers-floating-btn');
+    if (btn) return;
+
+    btn = document.createElement('button');
     btn.className = 'ig-unfollowers-floating-btn';
-    btn.title = 'Quem Não Me Segue no Instagram?';
+    btn.title = 'Quem Não Me Segue no Instagram? (Arraste na vertical para reposicionar)';
     btn.setAttribute('aria-label', 'Quem Não Me Segue no Instagram');
     btn.innerHTML = `
+      <span class="ig-btn-grip" aria-hidden="true">${SVGS.grip}</span>
       <span class="ig-btn-icon">${SVGS.users}</span>
       <span class="ig-btn-text">Quem Não Me Segue?</span>
     `;
 
-    btn.addEventListener('click', openModal);
+    // Restaura posição vertical salva
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+      chrome.storage.local.get(['ig_floating_btn_top'], (res) => {
+        if (res && res.ig_floating_btn_top) {
+          floatingBtnTop = res.ig_floating_btn_top;
+          btn.style.top = res.ig_floating_btn_top;
+        }
+      });
+    }
+
+    // Comportamento de arrasto vertical suave (Pointer Events)
+    let isDragging = false;
+    let startY = 0;
+    let initialTop = 0;
+    let hasMoved = false;
+
+    btn.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return;
+      isDragging = true;
+      hasMoved = false;
+      startY = e.clientY;
+      const rect = btn.getBoundingClientRect();
+      initialTop = rect.top;
+      try {
+        btn.setPointerCapture(e.pointerId);
+      } catch (_) {}
+    });
+
+    btn.addEventListener('pointermove', (e) => {
+      if (!isDragging) return;
+      const dy = e.clientY - startY;
+      if (Math.abs(dy) > 4) {
+        hasMoved = true;
+        btn.classList.add('is-dragging');
+        const minTop = 40;
+        const maxTop = window.innerHeight - (btn.offsetHeight || 44) - 40;
+        let newTop = initialTop + dy;
+        newTop = Math.max(minTop, Math.min(newTop, maxTop));
+        btn.style.top = `${newTop}px`;
+        btn.style.bottom = 'auto';
+      }
+    });
+
+    const finishDrag = (e) => {
+      if (!isDragging) return;
+      isDragging = false;
+      try {
+        btn.releasePointerCapture(e.pointerId);
+      } catch (_) {}
+      setTimeout(() => {
+        btn.classList.remove('is-dragging');
+      }, 50);
+
+      if (hasMoved) {
+        floatingBtnTop = btn.style.top;
+        if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+          chrome.storage.local.set({ ig_floating_btn_top: floatingBtnTop });
+        }
+      }
+    };
+
+    btn.addEventListener('pointerup', finishDrag);
+    btn.addEventListener('pointercancel', finishDrag);
+
+    btn.addEventListener('click', (e) => {
+      if (hasMoved) {
+        e.preventDefault();
+        e.stopPropagation();
+        hasMoved = false;
+        return;
+      }
+      openModal();
+    });
+
     document.body.appendChild(btn);
   }
 
@@ -3243,6 +3321,57 @@
       observer.observe(document.body, { childList: true, subtree: true });
     } catch (e) {}
   }
+
+  // -------------------------------------------------------------
+  // ATALHO GLOBAL DE TECLADO: ESC PARA FECHAMENTO DE MODAIS
+  // -------------------------------------------------------------
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' || e.key === 'Esc') {
+      // 1. Modal de confirmação de deseguir em lote
+      const confirmOverlay = document.querySelector('.ig-unf-confirm-overlay');
+      if (confirmOverlay) {
+        confirmOverlay.remove();
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+
+      // 2. Dropdown de exportação aberto
+      if (activeExportMenuCleanup) {
+        activeExportMenuCleanup();
+        activeExportMenuCleanup = null;
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+
+      // 3. Central de Bloqueios
+      const blockModal = document.getElementById('igBlockCheckerModal');
+      if (blockModal) {
+        blockModal.remove();
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+
+      // 4. Modal PRO
+      const proModal = document.getElementById('igProModal');
+      if (proModal) {
+        proModal.remove();
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+
+      // 5. Modal Principal
+      if (overlay && overlay.style.display !== 'none') {
+        closeModal();
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+    }
+  });
 
   monitorBlockedAccountsPage();
   window.addEventListener('popstate', monitorBlockedAccountsPage);
