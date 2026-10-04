@@ -195,7 +195,7 @@
 .ig-unf-modal {
   position: relative;
   width: 100%;
-  max-width: 620px;
+  max-width: 680px;
   height: 85vh;
   background: var(--ig-bg-base);
   border: 1px solid var(--ig-border-subtle);
@@ -211,18 +211,21 @@
 
 /* Cabeçalho do Modal */
 .ig-unf-header {
-  padding: 16px 20px;
+  padding: 14px 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid var(--ig-border-subtle);
   background: var(--ig-bg-elevated);
+  gap: 12px;
 }
 
 .ig-unf-title-group {
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
+  flex-shrink: 1;
 }
 
 .ig-unf-logo-badge {
@@ -242,6 +245,9 @@
   font-weight: 700;
   color: #ffffff;
   letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .ig-unf-close-btn {
@@ -729,6 +735,8 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
+  flex: 1;
 }
 
 .ig-unf-avatar {
@@ -743,6 +751,8 @@
 .ig-unf-names {
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  flex: 1;
 }
 
 .ig-unf-username {
@@ -752,12 +762,15 @@
   display: flex;
   align-items: center;
   gap: 5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .ig-unf-fullname {
   font-size: 12px;
   color: #b0b0b8;
-  max-width: 190px;
+  max-width: 240px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -785,6 +798,8 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
   transition: all 0.15s ease;
 }
 
@@ -809,6 +824,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  white-space: nowrap;
+  flex-shrink: 0;
   transition: all 0.15s ease;
 }
 
@@ -838,6 +855,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  white-space: nowrap;
+  flex-shrink: 0;
   transition: background 0.15s ease;
 }
 
@@ -1115,7 +1134,8 @@
 .ig-unf-header-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .ig-unf-pro-gold-badge {
@@ -1130,6 +1150,8 @@
   align-items: center;
   gap: 4px;
   letter-spacing: 0.5px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .ig-unf-free-badge {
@@ -1140,6 +1162,8 @@
   font-weight: 700;
   padding: 3px 7px;
   border-radius: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .ig-unf-pro-btn {
@@ -1156,6 +1180,8 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
   transition: transform 0.15s ease, opacity 0.15s ease;
 }
 
@@ -1210,6 +1236,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
+  flex: 1;
 }
 
 .ig-unf-checkbox-container {
@@ -1686,13 +1714,17 @@
   border: 1px solid #3f3f46;
   color: #e4e4e7;
   padding: 6px 12px;
+  min-height: 36px;
+  box-sizing: border-box;
   border-radius: 6px;
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
   transition: all 0.15s ease;
 }
 
@@ -2601,6 +2633,8 @@
   min-height: 36px;
   box-sizing: border-box;
   font-size: 12px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .ig-unf-unfollow-btn.ig-unf-btn-pending:hover {
@@ -2905,6 +2939,37 @@
 }
 .ig-unf-toast-error .ig-unf-toast-icon {
   color: #f87171;
+}
+
+/* ------------------------------------------------------------- */
+/* RESPONSIVIDADE E ADAPTAÇÃO DE TELAS ESTREITAS (< 640px)       */
+/* ------------------------------------------------------------- */
+@media (max-width: 640px) {
+  .ig-unf-modal {
+    width: 96vw;
+    height: 90vh;
+  }
+
+  .ig-unf-header {
+    padding: 12px 14px;
+    gap: 8px;
+  }
+
+  .ig-unf-title {
+    font-size: 13.5px;
+  }
+
+  .ig-unf-ghost-btn span {
+    display: none;
+  }
+
+  .ig-unf-ghost-btn {
+    padding: 6px 8px;
+  }
+
+  .ig-unf-fullname {
+    max-width: 140px;
+  }
 }
 
 /* ------------------------------------------------------------- */
