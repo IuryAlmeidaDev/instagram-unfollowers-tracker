@@ -1477,9 +1477,10 @@
   border-color: #52525b;
 }
 
-/* Modal Verificador de Bloqueio */
+/* Modal Central de Bloqueios */
 .ig-unf-block-dialog {
-  max-width: 460px;
+  max-width: 520px;
+  max-height: 88vh;
   width: 100%;
   background: #121214;
   border: 1px solid #27272a;
@@ -1490,6 +1491,7 @@
   position: relative;
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
 }
 
 .ig-unf-block-dialog-header {
@@ -1531,7 +1533,228 @@
   font-size: 12px;
   color: #a1a1aa;
   line-height: 1.45;
-  max-width: 360px;
+  max-width: 380px;
+}
+
+/* Abas da Central de Bloqueios */
+.ig-unf-block-tabs {
+  display: flex;
+  background: #18181b;
+  padding: 4px;
+  border-radius: 10px;
+  gap: 4px;
+  margin-bottom: 14px;
+  border: 1px solid #27272a;
+}
+
+.ig-unf-block-tab-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #a1a1aa;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ig-unf-block-tab-btn:hover {
+  color: #f4f4f5;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.ig-unf-block-tab-btn.active {
+  background: #27272a;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+.ig-unf-block-tab-badge {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #d4d4d8;
+}
+
+.ig-unf-block-tab-btn.active .ig-unf-block-tab-badge {
+  background: #ef4444;
+  color: #ffffff;
+}
+
+.ig-unf-block-tab-btn.active .ig-unf-block-tab-badge.blue {
+  background: #3b82f6;
+  color: #ffffff;
+}
+
+.ig-unf-block-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 700;
+  color: #d4d4d8;
+  margin: 14px 0 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.ig-unf-block-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 260px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.ig-unf-block-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: #18181b;
+  border: 1px solid #27272a;
+  border-radius: 10px;
+  gap: 10px;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.ig-unf-block-list-item:hover {
+  border-color: #3f3f46;
+  background: #1f1f23;
+}
+
+.ig-unf-block-item-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.ig-unf-block-item-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #27272a;
+  flex-shrink: 0;
+  border: 1.5px solid rgba(255, 255, 255, 0.1);
+}
+
+.ig-unf-block-item-avatar.blocked-ring {
+  border-color: #ef4444;
+}
+
+.ig-unf-block-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ig-unf-block-item-user {
+  font-size: 13px;
+  font-weight: 600;
+  color: #f4f4f5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ig-unf-block-item-sub {
+  font-size: 11px;
+  color: #a1a1aa;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.ig-unf-block-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.ig-unf-block-item-btn {
+  padding: 5px 9px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+  background: #27272a;
+  color: #f4f4f5;
+}
+
+.ig-unf-block-item-btn:hover {
+  background: #3f3f46;
+}
+
+.ig-unf-block-item-btn.recheck {
+  background: rgba(59, 130, 246, 0.12);
+  color: #60a5fa;
+  border-color: rgba(59, 130, 246, 0.25);
+}
+
+.ig-unf-block-item-btn.recheck:hover {
+  background: #3b82f6;
+  color: #ffffff;
+}
+
+.ig-unf-block-item-btn.unblock {
+  background: rgba(239, 68, 68, 0.12);
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.25);
+}
+
+.ig-unf-block-item-btn.unblock:hover {
+  background: #ef4444;
+  color: #ffffff;
+}
+
+.ig-unf-block-item-btn.unblocked-done {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border-color: rgba(16, 185, 129, 0.3);
+  cursor: default;
+}
+
+.ig-unf-block-item-btn.remove {
+  background: transparent;
+  color: #71717a;
+  padding: 5px 7px;
+}
+
+.ig-unf-block-item-btn.remove:hover {
+  color: #f87171;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.ig-unf-block-empty-state {
+  text-align: center;
+  padding: 24px 16px;
+  color: #a1a1aa;
+  font-size: 12.5px;
+  line-height: 1.5;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed #27272a;
+  border-radius: 10px;
+  margin: 10px 0;
 }
 
 .ig-unf-block-input-box {

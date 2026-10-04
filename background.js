@@ -87,7 +87,40 @@ async function performSilentBackgroundCheck() {
     });
 
     if (lostUsers.length > 0) {
-      // Dispara a notificação na área de trabalho
+      // Se for apenas 1 usuário que sumiu, verifica se foi bloqueio real ou unfollow
+      if (lostUsers.length === 1) {
+        const u = lostUsers[0];
+        try {
+          const pub = await checkPublicAccountExistence(u.username);
+          if (pub && pub.exists) {
+            // A conta existe publicamente na web, mas sumiu dos seus seguidores = BLOQUEIO CONFIRMADO!
+            const blockedData = await chrome.storage.local.get(['ig_blocked_by_users']);
+            const list = Array.isArray(blockedData.ig_blocked_by_users) ? blockedData.ig_blocked_by_users : [];
+            if (!list.some(item => (item.username || '').toLowerCase() === (u.username || '').toLowerCase())) {
+              list.unshift({
+                username: (u.username || '').toLowerCase(),
+                fullName: u.full_name || '',
+                avatar: pub.details?.avatar || u.profile_pic_url || '',
+                followers: pub.details?.followers,
+                following: pub.details?.following,
+                posts: pub.details?.posts,
+                isPrivate: pub.details?.isPrivate,
+                detectedAt: Date.now()
+              });
+              await chrome.storage.local.set({ ig_blocked_by_users: list });
+            }
+
+            showDesktopNotification({
+              title: '🚨 Instagram: Alerta de Bloqueio!',
+              message: `@${u.username} te bloqueou no Instagram. Veja na Central de Bloqueios.`,
+              data: { url: 'https://www.instagram.com/' }
+            });
+            return;
+          }
+        } catch (err) {}
+      }
+
+      // Notificação padrão de unfollow
       showDesktopNotification({
         title: '🔔 Instagram: Deixaram de te seguir',
         message: lostUsers.length === 1

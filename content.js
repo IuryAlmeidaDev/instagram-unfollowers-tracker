@@ -50,7 +50,8 @@
     block: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>`,
     bell: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>`,
     userCheck: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></svg>`,
-    userX: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="17" y1="8" x2="22" y2="13"/><line x1="22" y1="8" x2="17" y2="13"/></svg>`
+    userX: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="17" y1="8" x2="22" y2="13"/><line x1="22" y1="8" x2="17" y2="13"/></svg>`,
+    refresh: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>`
   };
 
   // Obtém o ID do usuário logado via cookie ds_user_id
@@ -243,8 +244,19 @@
       const publicExists = !!(publicResult && publicResult.exists);
 
       if (publicExists) {
-        // Existe para o público geral na internet, mas é inacessível para a sua conta logada!
-        // PROVA DETERMINÍSTICA DE BLOQUEIO!
+        // Salva automaticamente na lista persistente da Central de Bloqueios
+        try {
+          await saveBlockedByUser({
+            username: clean,
+            fullName: publicResult?.details?.fullName || '',
+            avatar: publicResult?.details?.avatar || '',
+            followers: publicResult?.details?.followers,
+            following: publicResult?.details?.following,
+            posts: publicResult?.details?.posts,
+            isPrivate: publicResult?.details?.isPrivate
+          });
+        } catch (e) {}
+
         return {
           status: 'blocked',
           username: clean,
@@ -275,6 +287,120 @@
         isBlocked: false,
         isDeactivated: false
       };
+    }
+  }
+
+  // -------------------------------------------------------------
+  // CENTRAL DE BLOQUEIOS: DADOS PERSISTENTES E GERENCIAMENTO
+  // -------------------------------------------------------------
+
+  // Obtém lista de usuários que te bloquearam (salvos localmente)
+  async function getBlockedByUsers() {
+    return new Promise((resolve) => {
+      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+        chrome.storage.local.get(['ig_blocked_by_users'], (res) => {
+          resolve(Array.isArray(res.ig_blocked_by_users) ? res.ig_blocked_by_users : []);
+        });
+      } else {
+        resolve([]);
+      }
+    });
+  }
+
+  // Salva um usuário na lista de "Quem Te Bloqueou"
+  async function saveBlockedByUser(userObj) {
+    if (!userObj || !userObj.username) return;
+    const clean = userObj.username.replace(/^@/, '').trim().toLowerCase();
+    const list = await getBlockedByUsers();
+    const idx = list.findIndex(u => (u.username || '').toLowerCase() === clean);
+    const entry = {
+      username: clean,
+      fullName: userObj.fullName || userObj.full_name || '',
+      avatar: userObj.avatar || userObj.profile_pic_url || '',
+      followers: userObj.followers,
+      following: userObj.following,
+      posts: userObj.posts,
+      isPrivate: !!userObj.isPrivate,
+      detectedAt: userObj.detectedAt || Date.now()
+    };
+
+    if (idx >= 0) {
+      list[idx] = { ...list[idx], ...entry };
+    } else {
+      list.unshift(entry);
+    }
+
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+      await new Promise((resolve) => {
+        chrome.storage.local.set({ ig_blocked_by_users: list }, resolve);
+      });
+    }
+    return list;
+  }
+
+  // Remove um usuário da lista salva de "Quem Te Bloqueou"
+  async function removeBlockedByUser(username) {
+    const clean = (username || '').replace(/^@/, '').trim().toLowerCase();
+    const list = await getBlockedByUsers();
+    const updated = list.filter(u => (u.username || '').toLowerCase() !== clean);
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+      await new Promise((resolve) => {
+        chrome.storage.local.set({ ig_blocked_by_users: updated }, resolve);
+      });
+    }
+    return updated;
+  }
+
+  // Busca lista de usuários que você bloqueou no Instagram
+  async function fetchBlockedByMe() {
+    try {
+      const csrf = getCsrfToken();
+      const headers = {
+        'X-IG-App-ID': '936619743392459',
+        'X-Requested-With': 'XMLHttpRequest'
+      };
+      if (csrf) headers['X-CSRFToken'] = csrf;
+
+      const res = await fetch('/api/v1/users/blocked_list/', {
+        headers: headers,
+        credentials: 'include'
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        return {
+          success: true,
+          users: data.blocked_list || []
+        };
+      }
+      return { success: false, users: [], message: 'Não foi possível carregar a lista de bloqueados.' };
+    } catch (e) {
+      return { success: false, users: [], message: e.message };
+    }
+  }
+
+  // Desbloqueia um usuário diretamente na API do Instagram
+  async function unblockUserApi(userId) {
+    try {
+      const csrf = getCsrfToken();
+      const headers = {
+        'X-IG-App-ID': '936619743392459',
+        'X-Requested-With': 'XMLHttpRequest',
+        'Content-Type': 'application/x-www-form-urlencoded'
+      };
+      if (csrf) headers['X-CSRFToken'] = csrf;
+
+      const body = new URLSearchParams({ user_id: String(userId) }).toString();
+      const res = await fetch(`/api/v1/friendships/unblock/${userId}/`, {
+        method: 'POST',
+        headers: headers,
+        body: body,
+        credentials: 'include'
+      });
+
+      return res.ok;
+    } catch (e) {
+      return false;
     }
   }
 
@@ -465,9 +591,9 @@
             <div id="igProBadgeContainer"></div>
           </div>
           <div class="ig-unf-header-actions">
-            <button class="ig-unf-ghost-btn" id="igBlockModalBtn" title="Verificar se alguém te bloqueou no Instagram">
+            <button class="ig-unf-ghost-btn" id="igBlockModalBtn" title="Gerenciar bloqueios e ver quem te bloqueou no Instagram">
               ${SVGS.block}
-              <span>Checar Bloqueio</span>
+              <span>Central de Bloqueios</span>
             </button>
             <button class="ig-unf-pro-btn" id="igProTriggerBtn">
               ${SVGS.crown}
@@ -658,8 +784,8 @@
     }
   }
 
-  // Modal Interativo de Verificação de Bloqueio por @
-  function openBlockCheckerModal(defaultUsername = '') {
+  // Modal Central de Bloqueios (Quem Me Bloqueou + Quem Eu Bloqueei)
+  async function openBlockCheckerModal(defaultUsername = '') {
     const existing = document.getElementById('igBlockCheckerModal');
     if (existing) existing.remove();
 
@@ -667,32 +793,63 @@
     modal.className = 'ig-unf-pro-overlay';
     modal.id = 'igBlockCheckerModal';
 
+    const initialBlocked = await getBlockedByUsers();
+
     modal.innerHTML = `
       <div class="ig-unf-block-dialog" role="dialog" aria-modal="true" aria-labelledby="igBlockTitle">
         <div class="ig-unf-block-dialog-header">
           <div class="ig-unf-block-hero-badge">${SVGS.block}</div>
-          <div class="ig-unf-block-dialog-title" id="igBlockTitle">Verificador de Bloqueio</div>
+          <div class="ig-unf-block-dialog-title" id="igBlockTitle">Central de Bloqueios</div>
           <div class="ig-unf-block-dialog-subtitle">
-            Descubra se alguém te bloqueou, se desativou o perfil ou se continua com a conta normal.
+            Descubra quem te bloqueou e gerencie contas bloqueadas no seu perfil.
           </div>
           <button class="ig-unf-close-btn ig-unf-block-close" id="igBlockCloseBtn" aria-label="Fechar">${SVGS.close}</button>
         </div>
 
-        <div class="ig-unf-block-input-box">
-          <div class="ig-unf-block-input-group">
-            <span class="ig-unf-at-prefix">@</span>
-            <input type="text" class="ig-unf-block-input" id="igBlockUserInput" placeholder="usuario_do_instagram" value="${defaultUsername}">
-            <button class="ig-unf-block-submit-btn" id="igBlockSubmitBtn">
-              <span>${SVGS.search}</span>
-              <span>Verificar</span>
-            </button>
-          </div>
-          <div class="ig-unf-block-hint">
-            💡 Fazemos a prova real: comparamos o acesso autenticado da sua conta com o acesso público da web.
-          </div>
+        <div class="ig-unf-block-tabs">
+          <button class="ig-unf-block-tab-btn active" id="igTabBtnBlockedBy">
+            <span>🚨 Quem Me Bloqueou</span>
+            <span class="ig-unf-block-tab-badge" id="igBlockedByCountBadge">${initialBlocked.length}</span>
+          </button>
+          <button class="ig-unf-block-tab-btn" id="igTabBtnBlockedMe">
+            <span>🚫 Quem Eu Bloqueei</span>
+            <span class="ig-unf-block-tab-badge blue" id="igBlockedMeCountBadge">...</span>
+          </button>
         </div>
 
-        <div id="igBlockResultContainer" class="ig-unf-block-result-area" style="display: none;"></div>
+        <!-- ABA 1: QUEM ME BLOQUEOU -->
+        <div id="igPaneBlockedBy">
+          <div class="ig-unf-block-input-box">
+            <div class="ig-unf-block-input-group">
+              <span class="ig-unf-at-prefix">@</span>
+              <input type="text" class="ig-unf-block-input" id="igBlockUserInput" placeholder="usuario_do_instagram" value="${defaultUsername}">
+              <button class="ig-unf-block-submit-btn" id="igBlockSubmitBtn">
+                <span>${SVGS.search}</span>
+                <span>Verificar</span>
+              </button>
+            </div>
+            <div class="ig-unf-block-hint">
+              💡 Fazemos a prova real: comparamos o acesso autenticado da sua conta com o acesso público da web.
+            </div>
+          </div>
+
+          <div id="igBlockResultContainer" class="ig-unf-block-result-area" style="display: none; margin-bottom: 14px;"></div>
+
+          <div class="ig-unf-block-section-title">
+            <span>📋 Bloqueios Confirmados</span>
+            <span id="igBlockedByCounterText">${initialBlocked.length} perfil(is)</span>
+          </div>
+          <div id="igBlockedByListContainer" class="ig-unf-block-list"></div>
+        </div>
+
+        <!-- ABA 2: QUEM EU BLOQUEEI -->
+        <div id="igPaneBlockedMe" style="display: none;">
+          <div id="igBlockedMeLoading" class="ig-unf-block-loading">
+            <div class="ig-unf-spinner-sm"></div>
+            <span>Carregando sua lista de bloqueados no Instagram...</span>
+          </div>
+          <div id="igBlockedMeListContainer" class="ig-unf-block-list" style="display: none;"></div>
+        </div>
       </div>
     `;
 
@@ -703,10 +860,189 @@
       if (e.target === modal) modal.remove();
     });
 
+    const tabBtnBlockedBy = modal.querySelector('#igTabBtnBlockedBy');
+    const tabBtnBlockedMe = modal.querySelector('#igTabBtnBlockedMe');
+    const paneBlockedBy = modal.querySelector('#igPaneBlockedBy');
+    const paneBlockedMe = modal.querySelector('#igPaneBlockedMe');
+    const blockedByBadge = modal.querySelector('#igBlockedByCountBadge');
+    const blockedMeBadge = modal.querySelector('#igBlockedMeCountBadge');
+    const blockedByListContainer = modal.querySelector('#igBlockedByListContainer');
+    const blockedByCounterText = modal.querySelector('#igBlockedByCounterText');
+
     const input = modal.querySelector('#igBlockUserInput');
     const submitBtn = modal.querySelector('#igBlockSubmitBtn');
     const resultBox = modal.querySelector('#igBlockResultContainer');
 
+    // Alternância de Abas
+    tabBtnBlockedBy.addEventListener('click', () => {
+      tabBtnBlockedBy.classList.add('active');
+      tabBtnBlockedMe.classList.remove('active');
+      paneBlockedBy.style.display = 'block';
+      paneBlockedMe.style.display = 'none';
+    });
+
+    tabBtnBlockedMe.addEventListener('click', () => {
+      tabBtnBlockedMe.classList.add('active');
+      tabBtnBlockedBy.classList.remove('active');
+      paneBlockedBy.style.display = 'none';
+      paneBlockedMe.style.display = 'block';
+      loadBlockedMeTab();
+    });
+
+    // Renderiza lista de "Quem Me Bloqueou"
+    async function renderBlockedByList() {
+      const items = await getBlockedByUsers();
+      blockedByBadge.textContent = items.length;
+      if (blockedByCounterText) {
+        blockedByCounterText.textContent = `${items.length} perfil(is)`;
+      }
+
+      if (items.length === 0) {
+        blockedByListContainer.innerHTML = `
+          <div class="ig-unf-block-empty-state">
+            <span style="font-size: 26px; display: block; margin-bottom: 6px;">🛡️</span>
+            <strong style="color: #f4f4f5; display: block; margin-bottom: 4px;">Nenhum bloqueio registrado ainda</strong>
+            <span>Toda vez que a extensão detectar que um seguidor sumido te bloqueou, ou quando você verificar um perfil manualmente, ele será listado aqui.</span>
+          </div>
+        `;
+        return;
+      }
+
+      blockedByListContainer.innerHTML = '';
+      items.forEach(user => {
+        const itemEl = document.createElement('div');
+        itemEl.className = 'ig-unf-block-list-item';
+
+        const dateStr = user.detectedAt ? new Date(user.detectedAt).toLocaleDateString('pt-BR') : 'Hoje';
+
+        itemEl.innerHTML = `
+          <div class="ig-unf-block-item-left">
+            <img src="${user.avatar || 'https://www.instagram.com/static/images/ico/favicon.ico'}" alt="@${user.username}" class="ig-unf-block-item-avatar blocked-ring" referrerpolicy="no-referrer" onerror="this.src='https://www.instagram.com/static/images/ico/favicon.ico'">
+            <div class="ig-unf-block-item-info">
+              <span class="ig-unf-block-item-user">@${user.username} ${user.fullName ? `• <span style="font-weight: 400; color: #a1a1aa;">${user.fullName}</span>` : ''}</span>
+              <div class="ig-unf-block-item-sub">
+                <span style="color: #ef4444; font-weight: 600;">🚨 Te Bloqueou</span>
+                <span>• Detectado em ${dateStr}</span>
+                ${user.followers ? `<span>• 👥 ${user.followers}</span>` : ''}
+              </div>
+            </div>
+          </div>
+          <div class="ig-unf-block-item-actions">
+            <button class="ig-unf-block-item-btn recheck" data-action="recheck" title="Re-checar se o perfil continua te bloqueando">
+              ${SVGS.refresh} <span>Re-checar</span>
+            </button>
+            <a href="https://www.instagram.com/${user.username}/" target="_blank" rel="noopener" class="ig-unf-block-item-btn" title="Abrir Perfil">
+              ${SVGS.externalLink}
+            </a>
+            <button class="ig-unf-block-item-btn remove" data-action="remove" title="Remover da lista">
+              ${SVGS.close}
+            </button>
+          </div>
+        `;
+
+        itemEl.querySelector('[data-action="recheck"]').addEventListener('click', () => {
+          input.value = user.username;
+          tabBtnBlockedBy.click();
+          runCheck();
+        });
+
+        itemEl.querySelector('[data-action="remove"]').addEventListener('click', async () => {
+          await removeBlockedByUser(user.username);
+          renderBlockedByList();
+        });
+
+        blockedByListContainer.appendChild(itemEl);
+      });
+    }
+
+    // Carrega aba "Quem Eu Bloqueei"
+    let blockedMeLoaded = false;
+    async function loadBlockedMeTab() {
+      if (blockedMeLoaded) return;
+      const loading = modal.querySelector('#igBlockedMeLoading');
+      const container = modal.querySelector('#igBlockedMeListContainer');
+
+      loading.style.display = 'flex';
+      container.style.display = 'none';
+
+      const res = await fetchBlockedByMe();
+      loading.style.display = 'none';
+      container.style.display = 'flex';
+      blockedMeLoaded = true;
+
+      const users = res.users || [];
+      blockedMeBadge.textContent = users.length;
+
+      if (!res.success || users.length === 0) {
+        container.innerHTML = `
+          <div class="ig-unf-block-empty-state">
+            <span style="font-size: 26px; display: block; margin-bottom: 6px;">🕊️</span>
+            <strong style="color: #f4f4f5; display: block; margin-bottom: 4px;">Nenhuma conta bloqueada</strong>
+            <span>${res.success ? 'Você não possui nenhuma conta bloqueada no Instagram.' : (res.message || 'Não foi possível carregar a lista de bloqueados.')}</span>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = `
+        <div class="ig-unf-block-section-title">
+          <span>👥 Contas Bloqueadas por Você</span>
+          <span>${users.length} conta(s)</span>
+        </div>
+      `;
+
+      users.forEach(u => {
+        const uid = String(u.pk || u.id);
+        const itemEl = document.createElement('div');
+        itemEl.className = 'ig-unf-block-list-item';
+
+        itemEl.innerHTML = `
+          <div class="ig-unf-block-item-left">
+            <img src="${u.profile_pic_url || 'https://www.instagram.com/static/images/ico/favicon.ico'}" alt="@${u.username}" class="ig-unf-block-item-avatar" referrerpolicy="no-referrer" onerror="this.src='https://www.instagram.com/static/images/ico/favicon.ico'">
+            <div class="ig-unf-block-item-info">
+              <span class="ig-unf-block-item-user">@${u.username}</span>
+              <div class="ig-unf-block-item-sub">
+                <span>${u.full_name || 'Usuário do Instagram'}</span>
+                ${u.is_private ? '<span>• 🔒 Privado</span>' : ''}
+              </div>
+            </div>
+          </div>
+          <div class="ig-unf-block-item-actions">
+            <button class="ig-unf-block-item-btn unblock" data-action="unblock" data-uid="${uid}">
+              <span>Desbloquear</span>
+            </button>
+            <a href="https://www.instagram.com/${u.username}/" target="_blank" rel="noopener" class="ig-unf-block-item-btn" title="Abrir Perfil">
+              ${SVGS.externalLink}
+            </a>
+          </div>
+        `;
+
+        const unblockBtn = itemEl.querySelector('[data-action="unblock"]');
+        unblockBtn.addEventListener('click', async () => {
+          unblockBtn.disabled = true;
+          unblockBtn.innerHTML = `<div class="ig-unf-spinner-sm"></div> <span>Desbloqueando...</span>`;
+          const ok = await unblockUserApi(uid);
+          if (ok) {
+            unblockBtn.className = 'ig-unf-block-item-btn unblocked-done';
+            unblockBtn.innerHTML = `<span>Desbloqueado ✓</span>`;
+            const currentCount = parseInt(blockedMeBadge.textContent, 10);
+            if (!isNaN(currentCount) && currentCount > 0) {
+              blockedMeBadge.textContent = currentCount - 1;
+            }
+          } else {
+            unblockBtn.disabled = false;
+            unblockBtn.innerHTML = `<span>Tentar Novamente</span>`;
+          }
+        });
+
+        container.appendChild(itemEl);
+      });
+    }
+
+    // Inicializa a lista de "Quem Me Bloqueou"
+    renderBlockedByList();
+
+    // Executa a checagem manual
     async function runCheck() {
       const u = input.value.trim().replace(/^@/, '');
       if (!u) {
@@ -766,6 +1102,8 @@
             </div>
           </div>
         `;
+        // Atualiza a lista de confirmados imediatamente
+        renderBlockedByList();
       } else if (result.status === 'deactivated') {
         resultBox.innerHTML = `
           <div class="ig-unf-block-card is-deactivated">
@@ -1793,7 +2131,7 @@
           </button>
           <button class="ig-unf-custom-check-btn" id="igOpenCustomBlockBtn">
             <span>${SVGS.block}</span>
-            <span>Testar outro @</span>
+            <span>Central de Bloqueios</span>
           </button>
         </div>
       `;
