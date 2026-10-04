@@ -15,6 +15,8 @@
   let selectedUids = new Set();
   let isBatchRunning = false;
   let shouldStopBatch = false;
+  let isBatchModeActive = false;
+  let activeExportMenuCleanup = null;
 
   let scanResults = {
     notFollowingBack: [],
@@ -51,7 +53,11 @@
     bell: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>`,
     userCheck: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></svg>`,
     userX: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="17" y1="8" x2="22" y2="13"/><line x1="22" y1="8" x2="17" y2="13"/></svg>`,
-    refresh: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>`
+    refresh: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>`,
+    chevronDown: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`,
+    checkSquare: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>`,
+    fileText: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>`,
+    fileSpreadsheet: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/><line x1="12" y1="13" x2="12" y2="21"/></svg>`
   };
 
   // Sistema de Toasts Elegantes Dark Mode (Substitui alerts nativos)
@@ -1115,6 +1121,10 @@
   function closeModal() {
     if (overlay) {
       overlay.style.display = 'none';
+      if (activeExportMenuCleanup) {
+        activeExportMenuCleanup();
+        activeExportMenuCleanup = null;
+      }
     }
   }
 
@@ -2016,6 +2026,9 @@
         }
         if (selectedUids.has(targetUserId)) {
           selectedUids.delete(targetUserId);
+          if (selectedUids.size === 0) {
+            isBatchModeActive = false;
+          }
           updateBatchButtonState();
         }
         showToast(`Você deixou de seguir @${username || 'o perfil'}.`, 'success', 3000);
@@ -2102,6 +2115,7 @@
     isPhase1 = true;
     isEarlyReleased = false;
     selectedUids.clear();
+    isBatchModeActive = false;
 
     scanResults = {
       notFollowingBack: [],
@@ -2338,27 +2352,46 @@
           <span class="ig-unf-search-icon">${SVGS.search}</span>
           <input type="text" class="ig-unf-search-input" id="igSearchInput" placeholder="Pesquisar @arroba ou nome..." value="${searchTerm}" aria-label="Pesquisar perfis">
         </div>
-        <button class="ig-unf-export-btn" id="igExportTxt">
-          <span>${SVGS.download}</span>
-          <span>TXT</span>
+        <button type="button" class="ig-unf-batch-toggle-btn ${selectedUids.size > 0 || isBatchModeActive ? 'active' : ''}" id="igBatchToggleBtn" title="Ativar ou ocultar seleção em lote" aria-pressed="${selectedUids.size > 0 || isBatchModeActive ? 'true' : 'false'}" style="${currentTab === 'notFollowingBack' ? 'display: flex;' : 'display: none;'}">
+          <span>${SVGS.checkSquare}</span>
+          <span>Selecionar</span>
         </button>
-        <button class="ig-unf-export-btn" id="igExportCsv">
-          <span>${SVGS.download}</span>
-          <span>CSV</span>
-        </button>
+        <div class="ig-unf-export-dropdown-wrapper" id="igExportDropdownWrapper">
+          <button type="button" class="ig-unf-export-btn ig-unf-export-dropdown-btn" id="igExportDropdownBtn" aria-haspopup="true" aria-expanded="false" title="Opções de exportação">
+            <span>${SVGS.download}</span>
+            <span>Exportar</span>
+            <span class="ig-unf-dropdown-arrow">${SVGS.chevronDown}</span>
+          </button>
+          <div class="ig-unf-export-menu" id="igExportMenu" role="menu" aria-label="Opções de exportação">
+            <button type="button" class="ig-unf-export-item" id="igExportTxt" role="menuitem">
+              <span class="ig-unf-export-item-icon">${SVGS.fileText}</span>
+              <div class="ig-unf-export-item-text">
+                <span class="ig-unf-export-item-title">Exportar como TXT</span>
+                <span class="ig-unf-export-item-desc">Lista simples de @arrobas</span>
+              </div>
+            </button>
+            <button type="button" class="ig-unf-export-item" id="igExportCsv" role="menuitem">
+              <span class="ig-unf-export-item-icon">${SVGS.fileSpreadsheet}</span>
+              <div class="ig-unf-export-item-text">
+                <span class="ig-unf-export-item-title">Exportar como CSV</span>
+                <span class="ig-unf-export-item-desc">Planilha estruturada (Excel)</span>
+              </div>
+            </button>
+          </div>
+        </div>
       </div>
 
-      <div class="ig-unf-batch-bar" id="igBatchBar" style="${currentTab === 'notFollowingBack' ? 'display: flex;' : 'display: none;'}">
+      <div class="ig-unf-batch-bar ${currentTab === 'notFollowingBack' && (selectedUids.size > 0 || isBatchModeActive) ? 'visible' : ''}" id="igBatchBar" style="${currentTab === 'notFollowingBack' ? 'display: flex;' : 'display: none;'}">
         <div class="ig-unf-batch-select-group">
           <span class="ig-unf-batch-label">Seleção:</span>
-          <button class="ig-unf-batch-chip" data-batch="10">+10</button>
-          <button class="ig-unf-batch-chip" data-batch="25">+25</button>
-          <button class="ig-unf-batch-chip" data-batch="all">Todos</button>
-          <button class="ig-unf-batch-chip text" data-batch="clear">Limpar</button>
+          <button type="button" class="ig-unf-batch-chip" data-batch="10">+10</button>
+          <button type="button" class="ig-unf-batch-chip" data-batch="25">+25</button>
+          <button type="button" class="ig-unf-batch-chip" data-batch="all">Todos</button>
+          <button type="button" class="ig-unf-batch-chip text" data-batch="clear">Limpar</button>
         </div>
-        <button class="ig-unf-batch-run-btn" id="igBatchRunBtn" disabled>
+        <button type="button" class="ig-unf-batch-run-btn" id="igBatchRunBtn" ${selectedUids.size === 0 ? 'disabled' : ''}>
           <span>${SVGS.trash}</span>
-          <span id="igBatchRunText">Deseguir Selecionados (0)</span>
+          <span id="igBatchRunText">Deseguir Selecionados (${selectedUids.size})</span>
         </button>
       </div>
 
@@ -2367,6 +2400,96 @@
       <div class="ig-unf-user-list" id="igUserList"></div>
     `;
 
+    // Limpeza de listeners anteriores do menu de exportação se houver re-render
+    if (activeExportMenuCleanup) {
+      activeExportMenuCleanup();
+      activeExportMenuCleanup = null;
+    }
+
+    // Exportação com Menu Dropdown Compacto
+    const exportDropdownWrapper = body.querySelector('#igExportDropdownWrapper');
+    const exportDropdownBtn = body.querySelector('#igExportDropdownBtn');
+    const exportMenu = body.querySelector('#igExportMenu');
+
+    function closeExportDropdown() {
+      if (exportMenu) exportMenu.classList.remove('open');
+      if (exportDropdownBtn) {
+        exportDropdownBtn.classList.remove('open');
+        exportDropdownBtn.setAttribute('aria-expanded', 'false');
+      }
+    }
+
+    function toggleExportDropdown(e) {
+      e.stopPropagation();
+      const isOpen = exportMenu?.classList.contains('open');
+      if (isOpen) {
+        closeExportDropdown();
+      } else {
+        exportMenu?.classList.add('open');
+        exportDropdownBtn?.classList.add('open');
+        exportDropdownBtn?.setAttribute('aria-expanded', 'true');
+      }
+    }
+
+    if (exportDropdownBtn) {
+      exportDropdownBtn.addEventListener('click', toggleExportDropdown);
+    }
+
+    const exportTxtBtn = body.querySelector('#igExportTxt');
+    if (exportTxtBtn) {
+      exportTxtBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeExportDropdown();
+        exportData('txt');
+      });
+    }
+
+    const exportCsvBtn = body.querySelector('#igExportCsv');
+    if (exportCsvBtn) {
+      exportCsvBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeExportDropdown();
+        exportData('csv');
+      });
+    }
+
+    // Fechar dropdown ao clicar fora ou ao pressionar Escape
+    const handleOutsideClick = (e) => {
+      const wrapper = overlay?.querySelector('#igExportDropdownWrapper');
+      if (wrapper && !wrapper.contains(e.target)) {
+        closeExportDropdown();
+      }
+    };
+    document.addEventListener('click', handleOutsideClick);
+
+    const handleEscapeKey = (e) => {
+      if (e.key === 'Escape' && exportMenu?.classList.contains('open')) {
+        closeExportDropdown();
+        e.stopPropagation();
+      }
+    };
+    document.addEventListener('keydown', handleEscapeKey);
+
+    activeExportMenuCleanup = () => {
+      document.removeEventListener('click', handleOutsideClick);
+      document.removeEventListener('keydown', handleEscapeKey);
+    };
+
+    // Alternar modo de seleção em lote via botão da toolbar
+    const batchToggleBtn = body.querySelector('#igBatchToggleBtn');
+    if (batchToggleBtn) {
+      batchToggleBtn.addEventListener('click', () => {
+        if (isBatchModeActive || selectedUids.size > 0) {
+          isBatchModeActive = false;
+          selectedUids.clear();
+          syncCardCheckboxes();
+        } else {
+          isBatchModeActive = true;
+        }
+        updateBatchButtonState();
+      });
+    }
+
     // Eventos das abas
     body.querySelectorAll('.ig-unf-tab-btn').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -2374,10 +2497,8 @@
         body.querySelectorAll('.ig-unf-tab-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
 
-        const batchBar = body.querySelector('#igBatchBar');
-        if (batchBar) {
-          batchBar.style.display = currentTab === 'notFollowingBack' ? 'flex' : 'none';
-        }
+        closeExportDropdown();
+        updateBatchButtonState();
         renderUserListFull();
       });
     });
@@ -2389,13 +2510,10 @@
       renderUserListFull();
     });
 
-    // Exportação
-    body.querySelector('#igExportTxt').addEventListener('click', () => exportData('txt'));
-    body.querySelector('#igExportCsv').addEventListener('click', () => exportData('csv'));
-
     // Configuração dos botões de lote
     setupBatchControls();
 
+    updateBatchButtonState();
     renderUserListFull();
   }
 
@@ -2416,11 +2534,14 @@
 
         if (type === 'clear') {
           selectedUids.clear();
+          isBatchModeActive = false;
         } else if (type === 'all') {
           list.forEach(u => selectedUids.add(String(u.pk || u.id || u.pk_id)));
+          isBatchModeActive = true;
         } else {
           const count = parseInt(type, 10);
           list.slice(0, count).forEach(u => selectedUids.add(String(u.pk || u.id || u.pk_id)));
+          isBatchModeActive = true;
         }
         updateBatchButtonState();
         syncCardCheckboxes();
@@ -2511,11 +2632,48 @@
   function updateBatchButtonState() {
     const runBtn = overlay?.querySelector('#igBatchRunBtn');
     const text = overlay?.querySelector('#igBatchRunText');
-    if (!runBtn || !text) return;
+    const bar = overlay?.querySelector('#igBatchBar');
+    const toggleBtn = overlay?.querySelector('#igBatchToggleBtn');
 
     const count = selectedUids.size;
-    text.textContent = `Deseguir Selecionados (${count})`;
-    runBtn.disabled = count === 0 || isBatchRunning;
+
+    if (text) {
+      text.textContent = `Deseguir Selecionados (${count})`;
+    }
+    if (runBtn) {
+      runBtn.disabled = count === 0 || isBatchRunning;
+    }
+
+    const shouldShowBar = currentTab === 'notFollowingBack' && (count > 0 || isBatchModeActive);
+
+    if (bar) {
+      if (currentTab === 'notFollowingBack') {
+        bar.style.display = 'flex';
+        if (shouldShowBar) {
+          bar.classList.add('visible');
+        } else {
+          bar.classList.remove('visible');
+        }
+      } else {
+        bar.classList.remove('visible');
+        bar.style.display = 'none';
+      }
+    }
+
+    if (toggleBtn) {
+      if (currentTab === 'notFollowingBack') {
+        toggleBtn.style.display = 'flex';
+        if (shouldShowBar) {
+          toggleBtn.classList.add('active');
+          toggleBtn.setAttribute('aria-pressed', 'true');
+        } else {
+          toggleBtn.classList.remove('active');
+          toggleBtn.setAttribute('aria-pressed', 'false');
+        }
+      } else {
+        toggleBtn.style.display = 'none';
+      }
+    }
   }
 
   function syncCardCheckboxes() {
@@ -2630,6 +2788,7 @@
     }
 
     isBatchRunning = false;
+    isBatchModeActive = false;
     updateBatchButtonState();
     if (queueBanner) {
       queueBanner.innerHTML = `
@@ -2720,6 +2879,9 @@
           selectedUids.add(uid);
         } else {
           selectedUids.delete(uid);
+          if (selectedUids.size === 0) {
+            isBatchModeActive = false;
+          }
         }
         updateBatchButtonState();
       });
