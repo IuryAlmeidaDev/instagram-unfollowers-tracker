@@ -182,14 +182,14 @@ function parseInstagramProfileHtml(html, username) {
 
     if (desc) {
       const statsPart = desc.split('-')[0] || '';
-      const fMatch = statsPart.match(/([\d\.,\sKMkmb]+)\s+(?:Followers|Seguidores)/i);
-      if (fMatch) followers = fMatch[1].replace(/^[^\d]+/, '').trim();
+      const fMatch = statsPart.match(/([\d\.,KMkmb]+)\s+(?:Followers|Seguidores)/i);
+      if (fMatch) followers = fMatch[1].trim();
 
-      const folMatch = statsPart.match(/([\d\.,\sKMkmb]+)\s+(?:Following|Seguindo)/i);
-      if (folMatch) following = folMatch[1].replace(/^[^\d]+/, '').trim();
+      const folMatch = statsPart.match(/([\d\.,KMkmb]+)\s+(?:Following|Seguindo)/i);
+      if (folMatch) following = folMatch[1].trim();
 
-      const pMatch = statsPart.match(/([\d\.,\sKMkmb]+)\s+(?:Posts|Publicações)/i);
-      if (pMatch) posts = pMatch[1].replace(/^[^\d]+/, '').trim();
+      const pMatch = statsPart.match(/([\d\.,KMkmb]+)\s+(?:Posts|Publicações|Publicacoes)/i);
+      if (pMatch) posts = pMatch[1].trim();
     }
 
     const isPrivate = html.includes('Este perfil é privado') ||

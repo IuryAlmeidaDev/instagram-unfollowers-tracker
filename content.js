@@ -117,14 +117,14 @@
 
       if (desc) {
         const statsPart = desc.split('-')[0] || '';
-        const fMatch = statsPart.match(/([\d\.,\sKMkmb]+)\s+(?:Followers|Seguidores)/i);
-        if (fMatch) followers = fMatch[1].replace(/^[^\d]+/, '').trim();
+        const fMatch = statsPart.match(/([\d\.,KMkmb]+)\s+(?:Followers|Seguidores)/i);
+        if (fMatch) followers = fMatch[1].trim();
 
-        const folMatch = statsPart.match(/([\d\.,\sKMkmb]+)\s+(?:Following|Seguindo)/i);
-        if (folMatch) following = folMatch[1].replace(/^[^\d]+/, '').trim();
+        const folMatch = statsPart.match(/([\d\.,KMkmb]+)\s+(?:Following|Seguindo)/i);
+        if (folMatch) following = folMatch[1].trim();
 
-        const pMatch = statsPart.match(/([\d\.,\sKMkmb]+)\s+(?:Posts|Publicações)/i);
-        if (pMatch) posts = pMatch[1].replace(/^[^\d]+/, '').trim();
+        const pMatch = statsPart.match(/([\d\.,KMkmb]+)\s+(?:Posts|Publicações|Publicacoes)/i);
+        if (pMatch) posts = pMatch[1].trim();
       }
 
       const isPrivate = html.includes('Este perfil é privado') ||
@@ -753,6 +753,7 @@
               <div class="ig-unf-block-meta-chips">
                 ${d.isPrivate ? '<span class="ig-unf-meta-chip lock">🔒 Perfil Privado</span>' : '<span class="ig-unf-meta-chip pub">🌐 Perfil Público</span>'}
                 ${d.followers !== undefined ? `<span class="ig-unf-meta-chip">👥 ${d.followers} seguidores</span>` : ''}
+                ${d.following !== undefined ? `<span class="ig-unf-meta-chip">👣 ${d.following} seguindo</span>` : ''}
                 ${d.posts !== undefined ? `<span class="ig-unf-meta-chip">📸 ${d.posts} posts</span>` : ''}
               </div>
             ` : ''}
@@ -810,6 +811,7 @@
               <div class="ig-unf-block-meta-chips">
                 ${d.isPrivate ? '<span class="ig-unf-meta-chip lock">🔒 Perfil Privado</span>' : '<span class="ig-unf-meta-chip pub">🌐 Perfil Público</span>'}
                 ${d.followers !== undefined ? `<span class="ig-unf-meta-chip">👥 ${d.followers} seguidores</span>` : ''}
+                ${d.following !== undefined ? `<span class="ig-unf-meta-chip">👣 ${d.following} seguindo</span>` : ''}
                 ${d.posts !== undefined ? `<span class="ig-unf-meta-chip">📸 ${d.posts} posts</span>` : ''}
               </div>
             ` : ''}
