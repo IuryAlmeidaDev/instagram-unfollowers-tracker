@@ -36,7 +36,7 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const response = await fetch(`https://api.pushinpay.com.br/api/transactions/${id}`, {
+    const response = await fetch(`https://api.pushinpay.com.br/api/transactions/${encodeURIComponent(id)}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
