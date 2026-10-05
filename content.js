@@ -1147,7 +1147,7 @@
   // Obtém o token CSRF para realizar ações de seguir/deseguir
   function getCsrfToken() {
     const match = document.cookie.match(/csrftoken=([^;]+)/);
-    if (match && match[1]) return match[1];
+    if (match && match[1]) return decodeURIComponent(match[1]);
 
     try {
       if (window._sharedData && window._sharedData.config && window._sharedData.config.csrf_token) {
@@ -1157,6 +1157,15 @@
 
     const meta = document.querySelector('meta[name="csrf-token"]') || document.querySelector('input[name="csrfmiddlewaretoken"]');
     if (meta) return meta.value || meta.content || '';
+
+    try {
+      const scripts = document.querySelectorAll('script:not([src])');
+      for (const s of scripts) {
+        const text = s.textContent || '';
+        const m = text.match(/"csrf_token":"([^"]+)"/);
+        if (m && m[1]) return m[1];
+      }
+    } catch (e) {}
 
     return '';
   }
@@ -2370,7 +2379,16 @@
         });
       }
 
-      if (res.ok) {
+      const contentType = res.headers.get('content-type') || '';
+      let isUnfollowed = false;
+      if (!res.redirected && res.ok && contentType.includes('application/json')) {
+        const data = await res.json().catch(() => null);
+        if (data && data.status === 'ok') {
+          isUnfollowed = true;
+        }
+      }
+
+      if (isUnfollowed) {
         if (targetBtn) {
           targetBtn.innerHTML = `${SVGS.check} <span>Deixou de seguir</span>`;
           targetBtn.style.background = '#27272a';
@@ -2393,7 +2411,7 @@
           targetBtn.textContent = 'Tentar no perfil ↗';
           targetBtn.disabled = false;
           targetBtn.onclick = () => {
-            window.open(`https://www.instagram.com/web/friendships/${targetUserId}/`, '_blank');
+            window.open(`https://www.instagram.com/${username || targetUserId}/`, '_blank');
           };
         }
         showToast('Não foi possível deixar de seguir pelo Instagram.', 'error', 4000);
@@ -2414,81 +2432,86 @@
   // Ação Individual de Seguir de Volta
   async function handleFollow(targetUserId, btn, username) {
     btn.disabled = true;
-    btn.textContent = 'Seguindo...';
+    btn.innerHTML = `<div class="ig-unf-spinner-sm"></div> <span style="margin-left:6px;">Seguindo...</span>`;
 
     const csrf = getCsrfToken();
     const headers = {
       'X-CSRFToken': csrf,
       'X-IG-App-ID': '936619743392459',
+      'X-ASBD-ID': '129477',
       'X-Requested-With': 'XMLHttpRequest',
       'X-Instagram-AJAX': '1',
       'Content-Type': 'application/x-www-form-urlencoded'
     };
 
-    const bodyData = `user_id=${encodeURIComponent(targetUserId)}&radio_type=wifi-none`;
+    let followSuccess = false;
+    let isRequested = false;
 
     try {
-      // 1. Endpoint padrão do Instagram (friendships/create)
-      let res = await fetch(`/api/v1/friendships/create/${targetUserId}/`, {
+      // 1. Endpoint padrão oficial da Web para follow: /api/v1/web/friendships/<targetUserId>/follow/
+      let res = await fetch(`/api/v1/web/friendships/${targetUserId}/follow/`, {
         method: 'POST',
         headers: headers,
-        body: bodyData,
+        body: '',
         credentials: 'include'
       });
 
-      // 2. Fallback para /api/v1/web/friendships/.../follow/
-      if (!res.ok) {
-        res = await fetch(`/api/v1/web/friendships/${targetUserId}/follow/`, {
-          method: 'POST',
-          headers: headers,
-          body: bodyData,
-          credentials: 'include'
-        });
-      }
-
-      // 3. Fallback legado para /web/friendships/.../follow/
-      if (!res.ok) {
+      // 2. Fallback se 404
+      if (res.status === 404) {
         res = await fetch(`/web/friendships/${targetUserId}/follow/`, {
           method: 'POST',
           headers: headers,
-          body: bodyData,
+          body: '',
           credentials: 'include'
         });
       }
 
-      if (res.ok) {
-        btn.innerHTML = `${SVGS.check} <span>Seguindo</span>`;
-        btn.style.background = '#059669';
-        btn.style.color = '#ffffff';
-        btn.disabled = true;
-        showToast(`Você agora está seguindo @${username || 'o perfil'}.`, 'success', 3000);
-      } else {
-        const errText = await res.text().catch(() => '');
-        console.error('Erro ao seguir:', res.status, errText);
-
-        btn.innerHTML = `<span>Seguir no Perfil ↗</span>`;
-        btn.style.background = '#1877f2';
-        btn.style.color = '#ffffff';
-        btn.disabled = false;
-        btn.onclick = (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          window.open(`https://www.instagram.com/${username || targetUserId}/`, '_blank');
-        };
-        showToast('O Instagram exigiu confirmação na página do perfil. Clique para abrir.', 'info', 4500);
+      // Validação rigorosa: NUNCA confiar apenas em res.ok, pois fetch segue redirects automaticamente (302 -> 200 HTML).
+      // Deve garantir que não houve redirecionamento e que o corpo retornado é JSON com status 'ok'.
+      const contentType = res.headers.get('content-type') || '';
+      if (!res.redirected && res.ok && contentType.includes('application/json')) {
+        const data = await res.json().catch(() => null);
+        if (data && data.status === 'ok') {
+          followSuccess = true;
+          if (data.friendship_status && data.friendship_status.outgoing_request) {
+            isRequested = true;
+          }
+        }
       }
     } catch (e) {
-      console.error('Erro de rede ao seguir:', e);
+      console.warn('Erro ao chamar endpoint direto de follow:', e);
+    }
+
+    if (followSuccess) {
+      if (isRequested) {
+        btn.innerHTML = `${SVGS.check} <span>Solicitado</span>`;
+        btn.style.background = '#059669';
+        btn.style.borderColor = '#059669';
+        btn.style.color = '#ffffff';
+        btn.disabled = true;
+        showToast(`Solicitação enviada para @${username || 'o perfil'} com sucesso! ✓`, 'success', 3500);
+      } else {
+        btn.innerHTML = `${SVGS.check} <span>Seguindo</span>`;
+        btn.style.background = '#059669';
+        btn.style.borderColor = '#059669';
+        btn.style.color = '#ffffff';
+        btn.disabled = true;
+        showToast(`Você agora está seguindo @${username || 'o perfil'}. ✓`, 'success', 3000);
+      }
+    } else {
+      // Caso o Instagram exija confirmação no perfil ou bloqueie requisições de fundo,
+      // oferecemos o fallback inteligente de 1 clique no perfil oficial com nosso auto-seguidor
       btn.innerHTML = `<span>Seguir no Perfil ↗</span>`;
       btn.style.background = '#1877f2';
+      btn.style.borderColor = '#1877f2';
       btn.style.color = '#ffffff';
       btn.disabled = false;
       btn.onclick = (e) => {
         e.preventDefault();
         e.stopPropagation();
-        window.open(`https://www.instagram.com/${username || targetUserId}/`, '_blank');
+        window.open(`https://www.instagram.com/${username || targetUserId}/#auto_follow=1`, '_blank');
       };
-      showToast('Erro de rede. Clique para abrir o perfil e seguir diretamente.', 'info', 4000);
+      showToast('O Instagram exige confirmação no perfil. Clique no botão azul para seguir com 1 clique!', 'warning', 5000);
     }
   }
 
@@ -3135,7 +3158,16 @@
           res = await fetch(`/web/friendships/${uid}/unfollow/`, { method: 'POST', headers, credentials: 'include' });
         }
 
-        if (res.ok && btn) {
+        const contentType = res.headers.get('content-type') || '';
+        let isUnfollowed = false;
+        if (!res.redirected && res.ok && contentType.includes('application/json')) {
+          const data = await res.json().catch(() => null);
+          if (data && data.status === 'ok') {
+            isUnfollowed = true;
+          }
+        }
+
+        if (isUnfollowed && btn) {
           btn.innerHTML = `${SVGS.check} <span>Deixou</span>`;
           btn.disabled = true;
           selectedUids.delete(uid);
@@ -3770,10 +3802,101 @@
     }
   });
 
+  // -------------------------------------------------------------
+  // AUTO-FOLLOW NO PERFIL OFICIAL (Fallback Inteligente de 1-Clique)
+  // -------------------------------------------------------------
+  let autoFollowAttemptActive = false;
+
+  function handleAutoFollowProfile() {
+    if (!window.location.hash.includes('auto_follow=1')) return;
+    if (autoFollowAttemptActive) return;
+    autoFollowAttemptActive = true;
+
+    let attempts = 0;
+    const maxAttempts = 30; // 30 verificações a cada 200ms = 6 segundos de tolerância
+
+    const pollInterval = setInterval(() => {
+      attempts++;
+
+      // Busca botões interativos na página do perfil
+      const candidateButtons = Array.from(document.querySelectorAll('header button, main button, section button, div[role="button"]'));
+      let targetFollowBtn = null;
+
+      for (const btn of candidateButtons) {
+        const text = (btn.innerText || btn.textContent || '').trim().toLowerCase();
+        // Identifica botão nativo de follow do Instagram (PT, EN, ES)
+        if (
+          text === 'seguir de volta' ||
+          text === 'seguir' ||
+          text === 'follow back' ||
+          text === 'follow' ||
+          text === 'seguir também'
+        ) {
+          targetFollowBtn = btn;
+          break;
+        }
+      }
+
+      if (targetFollowBtn) {
+        clearInterval(pollInterval);
+        autoFollowAttemptActive = false;
+        try {
+          targetFollowBtn.click();
+          showToast('Conta seguida com sucesso no perfil oficial! ✓', 'success', 4000);
+        } catch (err) {
+          console.warn('Erro ao disparar clique nativo de seguir:', err);
+        }
+
+        try {
+          history.replaceState(null, '', window.location.pathname + window.location.search);
+        } catch (e) {}
+        return;
+      }
+
+      // Se a conta já estiver seguida ou com solicitação pendente
+      for (const btn of candidateButtons) {
+        const text = (btn.innerText || btn.textContent || '').trim().toLowerCase();
+        if (
+          text === 'seguindo' ||
+          text === 'following' ||
+          text === 'solicitado' ||
+          text === 'requested' ||
+          text === 'solicitada'
+        ) {
+          clearInterval(pollInterval);
+          autoFollowAttemptActive = false;
+          showToast('Esta conta já está seguida ou com solicitação enviada! ✓', 'info', 3500);
+          try {
+            history.replaceState(null, '', window.location.pathname + window.location.search);
+          } catch (e) {}
+          return;
+        }
+      }
+
+      if (attempts >= maxAttempts) {
+        clearInterval(pollInterval);
+        autoFollowAttemptActive = false;
+        try {
+          history.replaceState(null, '', window.location.pathname + window.location.search);
+        } catch (e) {}
+      }
+    }, 200);
+  }
+
+  // Inicialização e listeners globais
+  handleAutoFollowProfile();
+  window.addEventListener('hashchange', handleAutoFollowProfile);
+  window.addEventListener('popstate', handleAutoFollowProfile);
+
   monitorBlockedAccountsPage();
   window.addEventListener('popstate', monitorBlockedAccountsPage);
 
   // Injeção do botão na página do Instagram
   setTimeout(injectFloatingButton, 1000);
-  setInterval(injectFloatingButton, 3000);
+  setInterval(() => {
+    injectFloatingButton();
+    if (window.location.hash.includes('auto_follow=1')) {
+      handleAutoFollowProfile();
+    }
+  }, 3000);
 })();

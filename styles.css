@@ -907,6 +907,17 @@
   animation: igSpin 0.75s linear infinite;
 }
 
+.ig-unf-spinner-sm {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: igSpin 0.75s linear infinite;
+  display: inline-block;
+  vertical-align: middle;
+}
+
 @keyframes igSpin {
   to { transform: rotate(360deg); }
 }
