@@ -1214,7 +1214,19 @@
     });
   }
 
-  const PRO_CHECKOUT_URL = 'https://pay.kiwify.com.br/SEU_LINK'; // Substitua pelo link do seu produto Kiwify
+  const DEFAULT_PIX_API_URL = 'https://instagram-nao-seguidores.vercel.app/api';
+  function getPixApiUrl() {
+    try {
+      if (typeof window !== 'undefined' && window.__PIX_API_URL__) {
+        return window.__PIX_API_URL__;
+      }
+      if (typeof localStorage !== 'undefined' && localStorage.getItem('IG_PIX_API_URL')) {
+        return localStorage.getItem('IG_PIX_API_URL');
+      }
+    } catch (e) {}
+    return DEFAULT_PIX_API_URL;
+  }
+  const PIX_API_URL = getPixApiUrl();
   const LICENSE_SALT = 'IG_PRO_2026_SECRET_KEY';
   const LICENSE_CHARS = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
 
@@ -1437,6 +1449,9 @@
   }
 
   function closeModal() {
+    stopPixPolling();
+    const proModal = document.getElementById('igProModal');
+    if (proModal) proModal.remove();
     if (overlay) {
       overlay.style.display = 'none';
       if (activeExportMenuCleanup) {
@@ -1515,8 +1530,288 @@
     renderInitialView();
   }
 
+  let pixPollingInterval = null;
+
+  function stopPixPolling() {
+    if (pixPollingInterval) {
+      clearInterval(pixPollingInterval);
+      pixPollingInterval = null;
+    }
+  }
+
+  async function initiatePixPayment(containerEl) {
+    if (!containerEl) return;
+    stopPixPolling();
+
+    const featuresGrid = document.querySelector('.ig-unf-pro-features-grid');
+    if (featuresGrid) featuresGrid.style.display = 'none';
+
+    containerEl.innerHTML = `
+      <div class="ig-unf-pix-loading-view">
+        <div class="ig-unf-pix-spinner"></div>
+        <div class="ig-unf-pix-loading-title">Gerando Pix seguro...</div>
+        <div class="ig-unf-pix-loading-sub">Conectando ao Banco Central via Pushin Pay</div>
+      </div>
+    `;
+
+    try {
+      const apiUrl = getPixApiUrl();
+      const res = await fetch(`${apiUrl}/create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data.success || !data.transactionId) {
+        const errorMsg = data.error || 'Não foi possível gerar a cobrança Pix no momento.';
+        renderPixErrorView(containerEl, errorMsg);
+        return;
+      }
+
+      renderPixView(containerEl, data);
+    } catch (err) {
+      console.error('Erro ao conectar com API Pix:', err);
+      renderPixErrorView(containerEl, 'Falha de conexão com o servidor de pagamento. Verifique sua conexão e tente novamente.');
+    }
+  }
+
+  function renderPixErrorView(containerEl, message) {
+    if (!containerEl) return;
+    stopPixPolling();
+
+    containerEl.innerHTML = `
+      <div class="ig-unf-pix-error-view">
+        <div class="ig-unf-pix-error-icon">${SVGS.alert}</div>
+        <div class="ig-unf-pix-error-title">Erro ao gerar Pix</div>
+        <div class="ig-unf-pix-error-desc">${message || 'Ocorreu uma instabilidade momentânea.'}</div>
+        <div class="ig-unf-pix-error-actions">
+          <button type="button" class="ig-unf-pro-checkout-btn ig-unf-pix-retry-btn" id="igPixRetryBtn">
+            <span>${SVGS.refresh}</span>
+            <span>Tentar Novamente</span>
+          </button>
+          <button type="button" class="ig-unf-ghost-btn ig-unf-pix-cancel-btn" id="igPixCancelBtn">
+            <span>Voltar</span>
+          </button>
+        </div>
+      </div>
+    `;
+
+    const retryBtn = containerEl.querySelector('#igPixRetryBtn');
+    if (retryBtn) {
+      retryBtn.addEventListener('click', () => initiatePixPayment(containerEl));
+    }
+
+    const cancelBtn = containerEl.querySelector('#igPixCancelBtn');
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', () => openProModal());
+    }
+  }
+
+  function renderPixView(containerEl, data) {
+    if (!containerEl) return;
+    stopPixPolling();
+
+    const transactionId = data.transactionId;
+    const qrCode = data.qrCode || '';
+    let qrCodeBase64 = data.qrCodeBase64 || '';
+    if (qrCodeBase64 && !qrCodeBase64.startsWith('data:')) {
+      qrCodeBase64 = `data:image/png;base64,${qrCodeBase64}`;
+    }
+
+    containerEl.innerHTML = `
+      <div class="ig-unf-pix-checkout-view">
+        <div class="ig-unf-pix-view-header">
+          <div class="ig-unf-pix-view-badge">⚡ PAGAMENTO INSTANTÂNEO PIX</div>
+          <div class="ig-unf-pix-view-amount">R$ 9,99 • Acesso Vitalício</div>
+        </div>
+
+        <div class="ig-unf-pix-qr-container">
+          <div class="ig-unf-pix-qr-card">
+            ${qrCodeBase64 ? `
+              <img src="${qrCodeBase64}" alt="QR Code Pix R$ 9,99" class="ig-unf-pix-qr-img" />
+            ` : `
+              <div class="ig-unf-pix-qr-fallback">QR Code gerado. Copie o código abaixo.</div>
+            `}
+          </div>
+          <span class="ig-unf-pix-qr-hint">Abra o app do seu banco e aponte a câmera para pagar</span>
+        </div>
+
+        <div class="ig-unf-pix-copy-section">
+          <label class="ig-unf-pix-copy-label" for="igPixCopyInput">Ou copie o código Pix Copia e Cola:</label>
+          <div class="ig-unf-pix-copy-input-row">
+            <input type="text" readonly id="igPixCopyInput" class="ig-unf-pix-copy-input" value="${qrCode}" spellcheck="false" />
+            <button type="button" class="ig-unf-pix-copy-btn" id="igPixCopyBtn" title="Copiar código Pix">
+              <span class="ig-unf-pix-copy-btn-icon">${SVGS.fileText}</span>
+              <span class="ig-unf-pix-copy-btn-text">Copiar Código Pix</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="ig-unf-pix-status-box">
+          <span class="ig-unf-pix-pulse-dot" aria-hidden="true"></span>
+          <span class="ig-unf-pix-status-text">🟡 Aguardando pagamento... (confirmação automática em tempo real)</span>
+        </div>
+      </div>
+    `;
+
+    const copyBtn = containerEl.querySelector('#igPixCopyBtn');
+    const copyInput = containerEl.querySelector('#igPixCopyInput');
+
+    if (copyBtn) {
+      copyBtn.addEventListener('click', async () => {
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(qrCode);
+          } else if (copyInput) {
+            copyInput.select();
+            document.execCommand('copy');
+          }
+          copyBtn.classList.add('copied');
+          const btnText = copyBtn.querySelector('.ig-unf-pix-copy-btn-text');
+          const btnIcon = copyBtn.querySelector('.ig-unf-pix-copy-btn-icon');
+          if (btnText) btnText.textContent = '✓ Código Pix copiado!';
+          if (btnIcon) btnIcon.innerHTML = SVGS.check;
+          showToast('✓ Código Pix copiado para a área de transferência!', 'success', 3500);
+
+          setTimeout(() => {
+            if (copyBtn && containerEl.contains(copyBtn)) {
+              copyBtn.classList.remove('copied');
+              if (btnText) btnText.textContent = 'Copiar Código Pix';
+              if (btnIcon) btnIcon.innerHTML = SVGS.fileText;
+            }
+          }, 3500);
+        } catch (copyErr) {
+          if (copyInput) {
+            copyInput.select();
+            document.execCommand('copy');
+          }
+          showToast('✓ Código selecionado para cópia!', 'info', 3000);
+        }
+      });
+    }
+
+    if (copyInput) {
+      copyInput.addEventListener('click', () => copyInput.select());
+    }
+
+    startPixStatusPolling(containerEl, transactionId);
+  }
+
+  function startPixStatusPolling(containerEl, transactionId) {
+    stopPixPolling();
+    if (!transactionId) return;
+
+    const apiUrl = getPixApiUrl();
+    let isRequesting = false;
+
+    pixPollingInterval = setInterval(async () => {
+      const currentModal = document.getElementById('igProModal');
+      if (!currentModal || !document.body.contains(currentModal) || !containerEl || !document.body.contains(containerEl)) {
+        stopPixPolling();
+        return;
+      }
+
+      if (isRequesting) return;
+      isRequesting = true;
+
+      try {
+        const res = await fetch(`${apiUrl}/status?id=${encodeURIComponent(transactionId)}`);
+        if (res.ok) {
+          const statusData = await res.json().catch(() => ({}));
+          if (statusData && statusData.success && statusData.status === 'paid') {
+            stopPixPolling();
+            const licenseKey = statusData.licenseKey || 'PRO-VIP-2026';
+            await activateLicense(licenseKey);
+            renderPixSuccessView(containerEl, licenseKey);
+          }
+        }
+      } catch (pollErr) {
+        console.warn('Erro ao verificar status do Pix:', pollErr);
+      } finally {
+        isRequesting = false;
+      }
+    }, 3500);
+  }
+
+  function renderPixSuccessView(containerEl, licenseKey) {
+    if (!containerEl) return;
+    stopPixPolling();
+
+    containerEl.innerHTML = `
+      <div class="ig-unf-pix-success-view">
+        <div class="ig-unf-pix-success-header">
+          <div class="ig-unf-pix-success-celebrate-badge">🎉</div>
+          <h3 class="ig-unf-pix-success-title">Pagamento Confirmado! Seu Plano PRO foi ativado.</h3>
+          <p class="ig-unf-pix-success-subtitle">Todos os recursos avançados estão disponíveis agora.</p>
+        </div>
+
+        <div class="ig-unf-pix-recovery-card">
+          <div class="ig-unf-pix-recovery-title">
+            <span>${SVGS.crown}</span>
+            <span>Chave de Recuperação da Licença</span>
+          </div>
+          <div class="ig-unf-pix-recovery-box">
+            <code class="ig-unf-pix-recovery-key" id="igPixRecoveryKey">${licenseKey}</code>
+            <button type="button" class="ig-unf-pix-recovery-copy-btn" id="igPixRecoveryCopyBtn" title="Copiar Chave">
+              <span class="ig-unf-pix-recovery-copy-icon">${SVGS.fileText}</span>
+              <span class="ig-unf-pix-recovery-copy-text">Copiar Chave</span>
+            </button>
+          </div>
+          <p class="ig-unf-pix-recovery-note">
+            Guarde sua chave de licença caso queira ativar em outro computador.
+          </p>
+        </div>
+
+        <button type="button" class="ig-unf-pro-checkout-btn ig-unf-pix-finish-btn" id="igPixFinishBtn">
+          <span>Concluir e Acessar Recursos PRO</span>
+        </button>
+      </div>
+    `;
+
+    showToast('🎉 Pagamento Confirmado! Seu Plano PRO foi ativado.', 'success', 6000);
+
+    const copyBtn = containerEl.querySelector('#igPixRecoveryCopyBtn');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', async () => {
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(licenseKey);
+          }
+          copyBtn.classList.add('copied');
+          const btnText = copyBtn.querySelector('.ig-unf-pix-recovery-copy-text');
+          const btnIcon = copyBtn.querySelector('.ig-unf-pix-recovery-copy-icon');
+          if (btnText) btnText.textContent = '✓ Chave Copiada!';
+          if (btnIcon) btnIcon.innerHTML = SVGS.check;
+          showToast('✓ Chave de recuperação copiada!', 'success', 3000);
+
+          setTimeout(() => {
+            if (copyBtn && containerEl.contains(copyBtn)) {
+              copyBtn.classList.remove('copied');
+              if (btnText) btnText.textContent = 'Copiar Chave';
+              if (btnIcon) btnIcon.innerHTML = SVGS.fileText;
+            }
+          }, 3000);
+        } catch (e) {
+          showToast('Chave: ' + licenseKey, 'info', 5000);
+        }
+      });
+    }
+
+    const finishBtn = containerEl.querySelector('#igPixFinishBtn');
+    if (finishBtn) {
+      finishBtn.addEventListener('click', () => {
+        openProModal();
+      });
+    }
+  }
+
   // Modal com benefícios e ativação do PRO
   function openProModal() {
+    stopPixPolling();
     const existing = document.getElementById('igProModal');
     if (existing) existing.remove();
 
@@ -1580,7 +1875,7 @@
           </div>
         </div>
 
-        <div class="ig-unf-pro-activation-box">
+        <div class="ig-unf-pro-activation-box" id="igProActivationBox">
           ${isPro ? `
             <div class="ig-unf-pro-act-label">Plano PRO Vitalício Ativo ✓</div>
             <div class="ig-unf-pro-settings-group">
@@ -1598,10 +1893,13 @@
                   <span>Checar Bloqueio por @</span>
                 </button>
               </div>
+              <div class="ig-unf-pro-active-license" id="igProActiveLicenseRow" style="display: none; margin-top: 10px; font-size: 11.5px; color: #a1a1aa;">
+                <span>Chave: </span><code id="igProActiveLicenseCode" style="color: #fbbf24; font-family: monospace;"></code>
+              </div>
             </div>
           ` : `
             <!-- Card de Oferta R$ 9,99 Vitalício no PIX -->
-            <div class="ig-unf-pro-offer-card">
+            <div class="ig-unf-pro-offer-card" id="igProOfferCard">
               <div class="ig-unf-pro-offer-badge">⚡ ACESSO VITALÍCIO PRO • PAGAMENTO ÚNICO</div>
               <div class="ig-unf-pro-offer-price-row">
                 <span class="ig-unf-pro-old-price">De R$ 29,90</span>
@@ -1609,13 +1907,25 @@
                 <span class="ig-unf-pro-pix-tag">no PIX</span>
               </div>
               <p class="ig-unf-pro-offer-desc">Sem assinaturas ou mensalidades. Ao pagar no PIX, seu acesso é liberado instantaneamente.</p>
-              <a href="${PRO_CHECKOUT_URL}" target="_blank" rel="noopener noreferrer" class="ig-unf-pro-checkout-btn" id="igProBuyBtn" style="color: #ffffff !important; text-decoration: none !important;">
-                <span style="color: #ffffff !important; font-weight: 800; font-size: 14.5px; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);">⚡ Pagar R$ 9,99 no PIX (Liberar PRO Imediato)</span>
-              </a>
+              <button type="button" class="ig-unf-pro-checkout-btn" id="igProBuyBtn">
+                <span>⚡ Pagar R$ 9,99 no PIX (Liberar Agora)</span>
+              </button>
               <div class="ig-unf-pro-trust-badges">
                 <span>✓ Liberação imediata</span>
                 <span>✓ Vitalício para sempre</span>
                 <span>✓ 100% Seguro</span>
+              </div>
+              <div class="ig-unf-pro-manual-activate">
+                <button type="button" class="ig-unf-pro-manual-toggle" id="igProManualToggleBtn">
+                  Já tem uma chave de licença? Ativar manualmente
+                </button>
+                <div class="ig-unf-pro-manual-form" id="igProManualForm" style="display: none;">
+                  <div class="ig-unf-pro-input-group">
+                    <input type="text" class="ig-unf-pro-input" id="igProManualKeyInput" placeholder="IGPRO-XXXXX-XXXXX-XXXXX" autocomplete="off" spellcheck="false" />
+                    <button type="button" class="ig-unf-pro-submit-btn" id="igProManualKeySubmit">Ativar</button>
+                  </div>
+                  <div class="ig-unf-pro-feedback" id="igProManualFeedback"></div>
+                </div>
               </div>
             </div>
           `}
@@ -1625,9 +1935,23 @@
 
     document.body.appendChild(proModal);
 
-    proModal.querySelector('#igProCloseBtn').addEventListener('click', () => proModal.remove());
+    const handleClose = () => {
+      stopPixPolling();
+      proModal.remove();
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        handleClose();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+
+    proModal.querySelector('#igProCloseBtn').addEventListener('click', handleClose);
     proModal.addEventListener('click', (e) => {
-      if (e.target === proModal) proModal.remove();
+      if (e.target === proModal) handleClose();
     });
 
     if (isPro) {
@@ -1636,8 +1960,16 @@
       const openBlockBtn = proModal.querySelector('#igProOpenBlockFromModalBtn');
 
       if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-        chrome.storage.local.get(['ig_notifications_enabled'], (res) => {
+        chrome.storage.local.get(['ig_notifications_enabled', 'ig_pro_license'], (res) => {
           if (notifSwitch) notifSwitch.checked = res.ig_notifications_enabled !== false;
+          if (res && res.ig_pro_license) {
+            const row = proModal.querySelector('#igProActiveLicenseRow');
+            const codeEl = proModal.querySelector('#igProActiveLicenseCode');
+            if (row && codeEl) {
+              codeEl.textContent = res.ig_pro_license;
+              row.style.display = 'block';
+            }
+          }
         });
       }
 
@@ -1659,7 +1991,7 @@
 
       if (openBlockBtn) {
         openBlockBtn.addEventListener('click', () => {
-          proModal.remove();
+          handleClose();
           openBlockCheckerModal();
         });
       }
@@ -1667,7 +1999,45 @@
       const buyBtn = proModal.querySelector('#igProBuyBtn');
       if (buyBtn) {
         buyBtn.addEventListener('click', () => {
-          showToast('Abrindo checkout PIX seguro...', 'info', 4000);
+          const container = proModal.querySelector('#igProActivationBox');
+          initiatePixPayment(container);
+        });
+      }
+
+      const manualToggle = proModal.querySelector('#igProManualToggleBtn');
+      const manualForm = proModal.querySelector('#igProManualForm');
+      const manualSubmit = proModal.querySelector('#igProManualKeySubmit');
+      const manualInput = proModal.querySelector('#igProManualKeyInput');
+      const manualFeedback = proModal.querySelector('#igProManualFeedback');
+
+      if (manualToggle && manualForm) {
+        manualToggle.addEventListener('click', () => {
+          const isHidden = manualForm.style.display === 'none';
+          manualForm.style.display = isHidden ? 'block' : 'none';
+          if (isHidden && manualInput) manualInput.focus();
+        });
+      }
+
+      if (manualSubmit && manualInput) {
+        manualSubmit.addEventListener('click', async () => {
+          const key = manualInput.value.trim();
+          if (!key) {
+            if (manualFeedback) {
+              manualFeedback.style.color = '#ef4444';
+              manualFeedback.textContent = 'Por favor, insira uma chave de licença.';
+            }
+            return;
+          }
+          const res = await activateLicense(key);
+          if (res.success) {
+            showToast(res.message, 'success', 5000);
+            openProModal();
+          } else {
+            if (manualFeedback) {
+              manualFeedback.style.color = '#ef4444';
+              manualFeedback.textContent = res.message;
+            }
+          }
         });
       }
     }

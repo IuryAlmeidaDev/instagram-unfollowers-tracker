@@ -1547,6 +1547,8 @@
 .ig-unf-pro-dialog {
   width: 100%;
   max-width: 490px;
+  max-height: 90vh;
+  overflow-y: auto;
   background: var(--ig-bg-base);
   border: 1px solid var(--ig-border-default);
   border-radius: var(--ig-radius-xl);
@@ -1556,6 +1558,19 @@
   position: relative;
   display: flex;
   flex-direction: column;
+}
+
+.ig-unf-pro-dialog::-webkit-scrollbar {
+  width: 6px;
+}
+
+.ig-unf-pro-dialog::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ig-unf-pro-dialog::-webkit-scrollbar-thumb {
+  background: #27272a;
+  border-radius: 4px;
 }
 
 .ig-unf-pro-dialog-header {
@@ -1843,6 +1858,16 @@ a.ig-unf-pro-checkout-btn,
   color: #ffffff !important;
 }
 
+.ig-unf-pro-checkout-btn:active {
+  transform: translateY(0);
+  filter: brightness(0.95);
+}
+
+.ig-unf-pro-checkout-btn:focus-visible {
+  outline: 2px solid #fbbf24;
+  outline-offset: 2px;
+}
+
 .ig-unf-pro-trust-badges {
   display: flex;
   align-items: center;
@@ -1871,6 +1896,493 @@ a.ig-unf-pro-checkout-btn,
 
 .ig-unf-pro-divider span {
   padding: 0 10px;
+}
+
+/* ============================================================ */
+/* FLUXO INTERATIVO DE PAGAMENTO PIX IN-MODAL (PUSHIN PAY)       */
+/* ============================================================ */
+
+/* Loading View */
+.ig-unf-pix-loading-view {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 36px 16px;
+  text-align: center;
+}
+
+.ig-unf-pix-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid rgba(245, 158, 11, 0.2);
+  border-top-color: #f59e0b;
+  border-radius: 50%;
+  animation: igSpin 0.8s linear infinite;
+  margin-bottom: 14px;
+}
+
+.ig-unf-pix-loading-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 6px;
+}
+
+.ig-unf-pix-loading-sub {
+  font-size: 12px;
+  color: #a1a1aa;
+}
+
+/* Error View */
+.ig-unf-pix-error-view {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 10px;
+  padding: 24px 18px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.ig-unf-pix-error-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.ig-unf-pix-error-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: #ffffff;
+  margin-bottom: 6px;
+}
+
+.ig-unf-pix-error-desc {
+  font-size: 12px;
+  color: #d4d4d8;
+  margin-bottom: 16px;
+  line-height: 1.45;
+  max-width: 380px;
+}
+
+.ig-unf-pix-error-actions {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  max-width: 320px;
+}
+
+.ig-unf-pix-retry-btn {
+  flex: 1;
+}
+
+.ig-unf-pix-cancel-btn {
+  padding: 8px 16px;
+}
+
+/* Checkout View */
+.ig-unf-pix-checkout-view {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: #141416;
+  border: 1px solid #262629;
+  border-radius: 12px;
+  padding: 18px;
+  box-sizing: border-box;
+}
+
+.ig-unf-pix-view-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #262629;
+  padding-bottom: 12px;
+}
+
+.ig-unf-pix-view-badge {
+  font-size: 11px;
+  font-weight: 800;
+  color: #fbbf24;
+  letter-spacing: 0.04em;
+  background: rgba(245, 158, 11, 0.15);
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.ig-unf-pix-view-amount {
+  font-size: 14px;
+  font-weight: 800;
+  color: #10b981;
+}
+
+/* QR Code Section */
+.ig-unf-pix-qr-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 0;
+}
+
+.ig-unf-pix-qr-card {
+  width: 190px;
+  height: 190px;
+  background: #ffffff;
+  padding: 10px;
+  border-radius: 10px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.ig-unf-pix-qr-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  image-rendering: pixelated;
+}
+
+.ig-unf-pix-qr-fallback {
+  color: #18181b;
+  font-size: 11px;
+  text-align: center;
+  font-weight: 600;
+}
+
+.ig-unf-pix-qr-hint {
+  font-size: 11.5px;
+  color: #a1a1aa;
+  margin-top: 10px;
+  text-align: center;
+}
+
+/* Copia e Cola Section */
+.ig-unf-pix-copy-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ig-unf-pix-copy-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #d4d4d8;
+}
+
+.ig-unf-pix-copy-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.ig-unf-pix-copy-input {
+  flex: 1;
+  background: #1c1c1f;
+  border: 1px solid #2e2e33;
+  border-radius: 8px;
+  color: #a1a1aa;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  padding: 10px 12px;
+  min-height: 40px;
+  box-sizing: border-box;
+  outline: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: border-color 0.15s ease;
+}
+
+.ig-unf-pix-copy-input:focus {
+  border-color: #fbbf24;
+  color: #ffffff;
+}
+
+.ig-unf-pix-copy-btn {
+  background: #262629;
+  border: 1px solid #3f3f46;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 8px;
+  padding: 10px 14px;
+  min-height: 40px;
+  box-sizing: border-box;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.ig-unf-pix-copy-btn:hover {
+  background: #323238;
+  border-color: #52525b;
+  transform: translateY(-1px);
+}
+
+.ig-unf-pix-copy-btn:active {
+  transform: translateY(0);
+}
+
+.ig-unf-pix-copy-btn:focus-visible {
+  outline: 2px solid #fbbf24;
+  outline-offset: 2px;
+}
+
+.ig-unf-pix-copy-btn.copied {
+  background: #059669 !important;
+  border-color: #10b981 !important;
+  color: #ffffff !important;
+}
+
+/* Status Indicator Pulsante */
+.ig-unf-pix-status-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: 8px;
+  padding: 10px 14px;
+}
+
+@keyframes igPulseDot {
+  0% {
+    transform: scale(0.9);
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7);
+  }
+  70% {
+    transform: scale(1.15);
+    box-shadow: 0 0 0 8px rgba(245, 158, 11, 0);
+  }
+  100% {
+    transform: scale(0.9);
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0);
+  }
+}
+
+.ig-unf-pix-pulse-dot {
+  width: 9px;
+  height: 9px;
+  background-color: #f59e0b;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+  animation: igPulseDot 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.ig-unf-pix-status-text {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #fbbf24;
+  line-height: 1.4;
+  text-align: center;
+}
+
+/* Success Celebration View */
+.ig-unf-pix-success-view {
+  background: linear-gradient(180deg, rgba(16, 185, 129, 0.12) 0%, rgba(20, 20, 22, 0.98) 100%);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  border-radius: 12px;
+  padding: 24px 20px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  animation: igFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ig-unf-pix-success-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.ig-unf-pix-success-celebrate-badge {
+  font-size: 38px;
+  margin-bottom: 8px;
+  animation: igBounce 0.6s ease;
+}
+
+@keyframes igBounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+.ig-unf-pix-success-title {
+  font-size: 17px;
+  font-weight: 800;
+  color: #ffffff;
+  margin: 0 0 6px 0;
+}
+
+.ig-unf-pix-success-subtitle {
+  font-size: 12.5px;
+  color: #a7f3d0;
+  margin: 0;
+}
+
+/* Recovery Key Card */
+.ig-unf-pix-recovery-card {
+  background: #18181b;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 10px;
+  padding: 14px;
+  text-align: center;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.ig-unf-pix-recovery-title {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #fbbf24;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.ig-unf-pix-recovery-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px dashed rgba(245, 158, 11, 0.4);
+  margin-bottom: 8px;
+}
+
+.ig-unf-pix-recovery-key {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 14px;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: 0.05em;
+  user-select: all;
+  flex: 1;
+  text-align: center;
+}
+
+.ig-unf-pix-recovery-copy-btn {
+  background: #27272a;
+  border: 1px solid #3f3f46;
+  color: #ffffff;
+  font-size: 11.5px;
+  font-weight: 700;
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.ig-unf-pix-recovery-copy-btn:hover {
+  background: #3f3f46;
+  border-color: #52525b;
+}
+
+.ig-unf-pix-recovery-copy-btn:active {
+  transform: translateY(0);
+}
+
+.ig-unf-pix-recovery-copy-btn:focus-visible {
+  outline: 2px solid #fbbf24;
+  outline-offset: 2px;
+}
+
+.ig-unf-pix-recovery-copy-btn.copied {
+  background: #059669 !important;
+  border-color: #10b981 !important;
+  color: #ffffff !important;
+}
+
+.ig-unf-pix-recovery-note {
+  font-size: 11.5px;
+  color: #a1a1aa;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.ig-unf-pix-finish-btn {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border: 1px solid rgba(52, 211, 153, 0.4);
+  color: #ffffff !important;
+  font-weight: 800;
+  font-size: 14px;
+  min-height: 46px;
+  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.35);
+  cursor: pointer;
+  border-radius: 8px;
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+.ig-unf-pix-finish-btn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+}
+
+.ig-unf-pix-finish-btn:active {
+  transform: translateY(0);
+}
+
+.ig-unf-pix-finish-btn:focus-visible {
+  outline: 2px solid #fbbf24;
+  outline-offset: 2px;
+}
+
+/* Manual Key Activation Toggle */
+.ig-unf-pro-manual-activate {
+  margin-top: 12px;
+  text-align: center;
+}
+
+.ig-unf-pro-manual-toggle {
+  background: none;
+  border: none;
+  color: #a1a1aa;
+  font-size: 11.5px;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 4px 8px;
+  transition: color 0.15s ease;
+}
+
+.ig-unf-pro-manual-toggle:hover {
+  color: #ffffff;
+}
+
+.ig-unf-pro-manual-toggle:focus-visible {
+  outline: 2px solid #fbbf24;
+  outline-offset: 2px;
+}
+
+.ig-unf-pro-manual-form {
+  margin-top: 10px;
+  text-align: left;
 }
 
 /* Botão Fantasma no Cabeçalho */
