@@ -17,6 +17,7 @@
   let shouldStopBatch = false;
   let isBatchModeActive = false;
   let activeExportMenuCleanup = null;
+  let proModalKeyDownHandler = null;
 
   let scanResults = {
     notFollowingBack: [],
@@ -1214,7 +1215,7 @@
     });
   }
 
-  const DEFAULT_PIX_API_URL = 'https://instagram-nao-seguidores.vercel.app/api';
+  const PIX_API_URL = 'https://instagram-nao-seguidores.vercel.app/api';
   function getPixApiUrl() {
     try {
       if (typeof window !== 'undefined' && window.__PIX_API_URL__) {
@@ -1224,9 +1225,8 @@
         return localStorage.getItem('IG_PIX_API_URL');
       }
     } catch (e) {}
-    return DEFAULT_PIX_API_URL;
+    return PIX_API_URL;
   }
-  const PIX_API_URL = getPixApiUrl();
   const LICENSE_SALT = 'IG_PRO_2026_SECRET_KEY';
   const LICENSE_CHARS = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
 
@@ -1450,6 +1450,10 @@
 
   function closeModal() {
     stopPixPolling();
+    if (proModalKeyDownHandler) {
+      document.removeEventListener('keydown', proModalKeyDownHandler);
+      proModalKeyDownHandler = null;
+    }
     const proModal = document.getElementById('igProModal');
     if (proModal) proModal.remove();
     if (overlay) {
@@ -1722,11 +1726,16 @@
         const res = await fetch(`${apiUrl}/status?id=${encodeURIComponent(transactionId)}`);
         if (res.ok) {
           const statusData = await res.json().catch(() => ({}));
-          if (statusData && statusData.success && statusData.status === 'paid') {
-            stopPixPolling();
-            const licenseKey = statusData.licenseKey || 'PRO-VIP-2026';
-            await activateLicense(licenseKey);
-            renderPixSuccessView(containerEl, licenseKey);
+          if (statusData && statusData.success) {
+            if (statusData.status === 'paid') {
+              stopPixPolling();
+              const licenseKey = statusData.licenseKey || 'PRO-VIP-2026';
+              await activateLicense(licenseKey);
+              renderPixSuccessView(containerEl, licenseKey);
+            } else if (statusData.status === 'expired' || statusData.status === 'canceled') {
+              stopPixPolling();
+              renderPixErrorView(containerEl, 'Esta cobrança Pix expirou. Gere um novo código para pagar.');
+            }
           }
         }
       } catch (pollErr) {
@@ -1812,6 +1821,10 @@
   // Modal com benefícios e ativação do PRO
   function openProModal() {
     stopPixPolling();
+    if (proModalKeyDownHandler) {
+      document.removeEventListener('keydown', proModalKeyDownHandler);
+      proModalKeyDownHandler = null;
+    }
     const existing = document.getElementById('igProModal');
     if (existing) existing.remove();
 
@@ -1937,8 +1950,11 @@
 
     const handleClose = () => {
       stopPixPolling();
+      if (proModalKeyDownHandler) {
+        document.removeEventListener('keydown', proModalKeyDownHandler);
+        proModalKeyDownHandler = null;
+      }
       proModal.remove();
-      document.removeEventListener('keydown', handleKeyDown);
     };
 
     const handleKeyDown = (e) => {
@@ -1947,7 +1963,12 @@
       }
     };
 
-    document.addEventListener('keydown', handleKeyDown);
+    if (proModalKeyDownHandler) {
+      document.removeEventListener('keydown', proModalKeyDownHandler);
+      proModalKeyDownHandler = null;
+    }
+    proModalKeyDownHandler = handleKeyDown;
+    document.addEventListener('keydown', proModalKeyDownHandler);
 
     proModal.querySelector('#igProCloseBtn').addEventListener('click', handleClose);
     proModal.addEventListener('click', (e) => {
@@ -2019,7 +2040,7 @@
       }
 
       if (manualSubmit && manualInput) {
-        manualSubmit.addEventListener('click', async () => {
+        const handleManualSubmit = async () => {
           const key = manualInput.value.trim();
           if (!key) {
             if (manualFeedback) {
@@ -2037,6 +2058,14 @@
               manualFeedback.style.color = '#ef4444';
               manualFeedback.textContent = res.message;
             }
+          }
+        };
+
+        manualSubmit.addEventListener('click', handleManualSubmit);
+        manualInput.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            handleManualSubmit();
           }
         });
       }
