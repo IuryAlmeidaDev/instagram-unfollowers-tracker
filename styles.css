@@ -3,6 +3,7 @@
 :root {
   /* Cores de Superfície e Fundo */
   --ig-bg-base: #121214;
+  --ig-bg-surface: #1e1e22;
   --ig-bg-elevated: #18181b;
   --ig-bg-card: #141416;
   --ig-bg-card-hover: #1c1c1f;
@@ -459,7 +460,7 @@
 .ig-unf-tab-badge {
   background: #333338;
   color: #ffffff;
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   padding: 1px 6px;
