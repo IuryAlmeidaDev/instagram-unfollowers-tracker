@@ -53,8 +53,8 @@ document.addEventListener('DOMContentLoaded', () => {
           proStatus.style.color = '#a1a1aa';
           proStatus.style.borderColor = '#3f3f46';
           proAction.innerHTML = `
-            <a href="${PRO_CHECKOUT_URL}" target="_blank" rel="noopener noreferrer" id="popupBuyLink" style="display: flex; align-items: center; justify-content: center; gap: 6px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #fff; text-decoration: none; padding: 10px 14px; border-radius: 6px; font-size: 13px; font-weight: 800; min-height: 40px; box-sizing: border-box;">
-              <span>⚡ Liberar PRO Vitalício por R$ 9,99 (PIX)</span>
+            <a href="${PRO_CHECKOUT_URL}" target="_blank" rel="noopener noreferrer" id="popupBuyLink" style="display: flex; align-items: center; justify-content: center; gap: 6px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #ffffff !important; text-decoration: none !important; padding: 10px 14px; border-radius: 6px; font-size: 13px; font-weight: 800; min-height: 40px; box-sizing: border-box; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);">
+              <span style="color: #ffffff !important;">⚡ Liberar PRO Vitalício por R$ 9,99 (PIX)</span>
             </a>
             <div style="font-size: 12px; color: #a1a1aa; text-align: center; margin-top: 6px;">Pagamento único • Sem mensalidades</div>
           `;

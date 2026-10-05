@@ -1803,6 +1803,17 @@
   margin-bottom: 12px;
 }
 
+.ig-unf-pro-checkout-btn,
+a.ig-unf-pro-checkout-btn,
+.ig-unf-pro-checkout-btn:link,
+.ig-unf-pro-checkout-btn:visited,
+.ig-unf-pro-checkout-btn:hover,
+.ig-unf-pro-checkout-btn:active,
+.ig-unf-pro-checkout-btn span {
+  color: #ffffff !important;
+  text-decoration: none !important;
+}
+
 .ig-unf-pro-checkout-btn {
   display: flex;
   align-items: center;
@@ -1810,14 +1821,16 @@
   width: 100%;
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
   border: 1px solid rgba(52, 211, 153, 0.4);
-  color: #ffffff;
-  font-size: 14px;
+  color: #ffffff !important;
+  font-size: 14.5px;
   font-weight: 800;
-  padding: 12px 18px;
-  min-height: 44px;
+  letter-spacing: -0.01em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  padding: 13px 18px;
+  min-height: 48px;
   box-sizing: border-box;
   border-radius: 8px;
-  text-decoration: none;
+  text-decoration: none !important;
   cursor: pointer;
   box-shadow: 0 4px 14px rgba(5, 150, 105, 0.35);
   transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.15s ease;
@@ -1827,6 +1840,7 @@
   transform: translateY(-1px);
   filter: brightness(1.08);
   box-shadow: 0 6px 18px rgba(5, 150, 105, 0.45);
+  color: #ffffff !important;
 }
 
 .ig-unf-pro-trust-badges {

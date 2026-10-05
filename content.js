@@ -1609,8 +1609,8 @@
                 <span class="ig-unf-pro-pix-tag">no PIX</span>
               </div>
               <p class="ig-unf-pro-offer-desc">Sem assinaturas ou mensalidades. Ao pagar no PIX, seu acesso é liberado instantaneamente.</p>
-              <a href="${PRO_CHECKOUT_URL}" target="_blank" rel="noopener noreferrer" class="ig-unf-pro-checkout-btn" id="igProBuyBtn">
-                <span>⚡ Pagar R$ 9,99 no PIX (Liberar PRO Imediato)</span>
+              <a href="${PRO_CHECKOUT_URL}" target="_blank" rel="noopener noreferrer" class="ig-unf-pro-checkout-btn" id="igProBuyBtn" style="color: #ffffff !important; text-decoration: none !important;">
+                <span style="color: #ffffff !important; font-weight: 800; font-size: 14.5px; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);">⚡ Pagar R$ 9,99 no PIX (Liberar PRO Imediato)</span>
               </a>
               <div class="ig-unf-pro-trust-badges">
                 <span>✓ Liberação imediata</span>
